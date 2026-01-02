@@ -860,6 +860,36 @@ COMMANDS: dict[str, CommandDefinition] = {
     ),
     
     # ========================================================================
+    # UNDO/REDO
+    # ========================================================================
+    "undo": CommandDefinition(
+        description="Undo the last action in the editor. Works on scene-level or global history depending on context.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "redo": CommandDefinition(
+        description="Redo the last undone action in the editor. Works on scene-level or global history depending on context.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "get_undo_redo_status": CommandDefinition(
+        description="Get the current undo/redo history status (has_undo, has_redo, history_count, current action name)",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    # ========================================================================
     # NODE MANIPULATION
     # ========================================================================
     "create_node": CommandDefinition(

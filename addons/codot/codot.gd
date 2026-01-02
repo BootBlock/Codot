@@ -128,17 +128,15 @@ func _add_dock_panel() -> void:
 
 ## Handles settings button click from the panel.
 func _on_settings_requested() -> void:
-	_log("Opening Codot settings...")
-	# Open Editor Settings - use the edit_settings method which is more reliable
+	_log("Opening Codot settings in Inspector...")
+	# Show EditorSettings in the Inspector panel - this is the most reliable approach
+	# since there's no public API to open the Editor Settings dialog directly
 	var settings := EditorInterface.get_editor_settings()
 	if settings:
-		# Navigate to a Codot setting to open the right section
-		EditorInterface.edit_resource(settings)
-	# Note: Unfortunately there's no direct way to navigate to a specific section
-	# The user will need to search for "Codot" in the Editor Settings
-	# Show helpful message via the panel
-	if _dock and _dock.has_method("show_settings_hint"):
-		_dock.show_settings_hint()
+		# inspect_object() displays the settings in the Inspector dock
+		# The third parameter is whether to jump to a specific property (not used here)
+		EditorInterface.inspect_object(settings)
+	# Note: The panel shows a hint message about how to access the full Editor Settings dialog
 
 
 ## Register Codot commands with the Editor Command Palette.

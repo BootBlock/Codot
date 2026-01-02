@@ -658,6 +658,9 @@ When you need to interact with Godot, use these MCP tools:
 | **Remove autoload** | `godot_remove_autoload` |
 | **Get project config** | `godot_get_project_config` |
 | **Set project config** | `godot_set_project_config` |
+| **Undo** | `godot_undo` |
+| **Redo** | `godot_redo` |
+| **Undo/Redo status** | `godot_get_undo_redo_status` |
 
 ## Automation Commands (NEW)
 
@@ -972,6 +975,57 @@ Change the loading order of autoloads.
 godot_reorder_autoloads(order=["AudioManager", "GameManager", "UIManager"])
 → Returns: {"reordered": true, "new_order": ["AudioManager", "GameManager", "UIManager"]}
 ```
+
+## Undo/Redo Commands
+
+Programmatically trigger undo and redo operations in the editor:
+
+### godot_undo
+Undo the last action in the editor.
+
+```
+godot_undo
+→ Returns: {
+    "undone": true,
+    "action_name": "Create Node",
+    "context": "scene",
+    "history_id": 1
+}
+```
+
+### godot_redo
+Redo the last undone action.
+
+```
+godot_redo
+→ Returns: {
+    "redone": true,
+    "action_name": "Create Node",
+    "context": "scene",
+    "history_id": 1
+}
+```
+
+### godot_get_undo_redo_status
+Get current undo/redo history status.
+
+```
+godot_get_undo_redo_status
+→ Returns: {
+    "has_undo": true,
+    "has_redo": false,
+    "current_action": 5,
+    "current_action_name": "Create Node",
+    "history_count": 6,
+    "version": 12,
+    "context": "scene",
+    "history_id": 1
+}
+```
+
+**Context Types:**
+- `"scene"` - Operations on the current scene
+- `"global"` - Global operations when no scene is open
 
 ## Project Config Commands
 

@@ -46,15 +46,15 @@ This document tracks potential improvements, optimizations, and new features for
 - [ ] **`get_editor_theme`** - Get current editor theme colors
 - [ ] **`get_editor_layout`** - Get dock positions, window sizes
 - [ ] **`set_editor_layout`** - Programmatically arrange editor panels
-- [ ] **`get_undo_redo_history`** - See what can be undone
-- [ ] **`undo` / `redo`** - Programmatic undo/redo
+- [x] **`get_undo_redo_status`** - See undo/redo availability and current action
+- [x] **`undo` / `redo`** - Programmatic undo/redo
 - [ ] **`get_recent_files`** - Recently opened files list
-- [ ] **`open_script_at_line`** - Open a script and jump to specific line
+- [x] **`open_script_at_line`** - Open a script and jump to specific line (via `open_script` with `line` param)
 
 ### Asset Management
 
 - [ ] **`import_asset`** - Import external files (images, audio, 3D models)
-- [ ] **`reimport_asset`** - Force reimport of an asset
+- [x] **`reimport_resource`** - Force reimport of an asset (already implemented)
 - [ ] **`get_import_settings`** - Get import configuration for an asset
 - [ ] **`set_import_settings`** - Modify import settings
 - [ ] **`get_resource_dependencies`** - Find what depends on a resource
@@ -62,8 +62,8 @@ This document tracks potential improvements, optimizations, and new features for
 
 ### Scene Operations
 
-- [ ] **`duplicate_node`** - Clone a node with optional deep copy
-- [ ] **`reparent_node`** - Move node to different parent
+- [x] **`duplicate_node`** - Clone a node with optional deep copy (already implemented)
+- [x] **`reparent_node`** - Move node to different parent (implemented as `move_node`)
 - [ ] **`instantiate_scene`** - Add scene as child (like Ctrl+Shift+A)
 - [ ] **`make_node_local`** - Convert inherited scene node to local
 - [ ] **`get_scene_diff`** - Compare scene to saved version
@@ -74,10 +74,10 @@ This document tracks potential improvements, optimizations, and new features for
 
 - [ ] **`set_breakpoint`** - Add/remove script breakpoints
 - [ ] **`get_breakpoints`** - List all breakpoints
-- [ ] **`get_performance_metrics`** - FPS, memory, draw calls
+- [x] **`get_performance_info`** - FPS, memory, draw calls (already implemented)
 - [ ] **`get_profiler_data`** - Detailed profiler information
 - [ ] **`get_orphan_nodes`** - Find memory leaks
-- [ ] **`get_memory_usage`** - Detailed memory breakdown
+- [x] **`get_memory_info`** - Detailed memory breakdown (already implemented)
 - [ ] **`pause_game` / `resume_game`** - Pause running game
 
 ### Animation

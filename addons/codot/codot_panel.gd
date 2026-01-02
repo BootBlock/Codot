@@ -985,8 +985,8 @@ func _on_archived_toggled(pressed: bool) -> void:
 func _on_settings_pressed() -> void:
 	settings_requested.emit()
 	if Engine.is_editor_hint():
-		# Show notification about where settings are (extended duration)
-		_show_auto_save_status("Editor → Editor Settings → Plugin → Codot", Color(0.5, 0.7, 0.9))
+		# Show notification: settings now visible in Inspector, plus path to full dialog
+		_show_auto_save_status("Settings shown in Inspector | Full: Editor → Editor Settings → Plugin → Codot", Color(0.5, 0.7, 0.9))
 		await get_tree().create_timer(SETTINGS_MESSAGE_DURATION).timeout
 		if not _is_dirty:
 			_show_auto_save_status("", Color(0.5, 0.5, 0.5))

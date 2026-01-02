@@ -278,3 +278,91 @@ func test_close_scene_no_editor() -> void:
 	
 	assert_false(response["success"], "Should fail without editor")
 	assert_eq(response["error"]["code"], "NO_EDITOR")
+
+
+# =============================================================================
+# Undo/Redo Commands Tests
+# =============================================================================
+
+func test_undo_no_editor() -> void:
+	var command = {
+		"id": 1,
+		"command": "undo",
+		"params": {}
+	}
+	var response = _handler.handle_command(command)
+	
+	assert_false(response["success"], "Should fail without editor")
+	assert_eq(response["error"]["code"], "NO_EDITOR")
+
+
+func test_redo_no_editor() -> void:
+	var command = {
+		"id": 1,
+		"command": "redo",
+		"params": {}
+	}
+	var response = _handler.handle_command(command)
+	
+	assert_false(response["success"], "Should fail without editor")
+	assert_eq(response["error"]["code"], "NO_EDITOR")
+
+
+func test_get_undo_redo_status_no_editor() -> void:
+	var command = {
+		"id": 1,
+		"command": "get_undo_redo_status",
+		"params": {}
+	}
+	var response = _handler.handle_command(command)
+	
+	assert_false(response["success"], "Should fail without editor")
+	assert_eq(response["error"]["code"], "NO_EDITOR")
+
+
+func test_undo_command_structure() -> void:
+	# Verify the command structure is correct
+	var command = {
+		"id": "test_undo_123",
+		"command": "undo",
+		"params": {}
+	}
+	var response = _handler.handle_command(command)
+	
+	# Should have proper response structure
+	assert_true(response.has("id"), "Response should have id")
+	assert_eq(response["id"], "test_undo_123", "ID should match")
+	assert_true(response.has("success"), "Response should have success flag")
+	# Will fail with NO_EDITOR, but structure should be correct
+	if not response["success"]:
+		assert_true(response.has("error"), "Should have error on failure")
+		assert_true(response["error"].has("code"), "Error should have code")
+		assert_true(response["error"].has("message"), "Error should have message")
+
+
+func test_redo_command_structure() -> void:
+	# Verify the command structure is correct
+	var command = {
+		"id": "test_redo_456",
+		"command": "redo",
+		"params": {}
+	}
+	var response = _handler.handle_command(command)
+	
+	# Should have proper response structure
+	assert_true(response.has("id"), "Response should have id")
+	assert_eq(response["id"], "test_redo_456", "ID should match")
+	assert_true(response.has("success"), "Response should have success flag")
+
+
+func test_get_undo_redo_status_command_structure() -> void:
+	var command = {
+		"id": "test_status_789",
+		"command": "get_undo_redo_status",
+		"params": {}
+	}
+	var response = _handler.handle_command(command)
+	
+	assert_true(response.has("id"), "Response should have id")
+	assert_eq(response["id"], "test_status_789", "ID should match")
+	assert_true(response.has("success"), "Response should have success flag")

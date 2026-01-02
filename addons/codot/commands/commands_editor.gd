@@ -508,3 +508,138 @@ func cmd_set_project_config(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		"value": value,
 		"saved": saved,
 	})
+
+
+# =============================================================================
+# Undo/Redo Commands
+# =============================================================================
+
+## Undo the last action in the editor.
+## [br][br]
+## [param params]: No parameters required.
+func cmd_undo(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var undo_redo_manager: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
+	if undo_redo_manager == null:
+		return _error(cmd_id, "NO_UNDO_MANAGER", "EditorUndoRedoManager not available")
+	
+	var scene_root = EditorInterface.get_edited_scene_root()
+	var history_id: int
+	var context: String
+	
+	if scene_root == null:
+		# No scene open, use global history
+		history_id = EditorUndoRedoManager.GLOBAL_HISTORY
+		context = "global"
+	else:
+		# Get the history ID for the current scene
+		history_id = undo_redo_manager.get_object_history_id(scene_root)
+		context = "scene"
+	
+	var undo_redo: UndoRedo = undo_redo_manager.get_history_undo_redo(history_id)
+	
+	if undo_redo == null:
+		return _error(cmd_id, "NO_HISTORY", "No undo history found for current %s" % context)
+	
+	if not undo_redo.has_undo():
+		return _error(cmd_id, "NO_UNDO", "No undo actions available")
+	
+	var action_name: String = undo_redo.get_current_action_name()
+	var success: bool = undo_redo.undo()
+	
+	return _success(cmd_id, {
+		"undone": success,
+		"action_name": action_name,
+		"context": context,
+		"history_id": history_id
+	})
+
+
+## Redo the last undone action in the editor.
+## [br][br]
+## [param params]: No parameters required.
+func cmd_redo(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var undo_redo_manager: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
+	if undo_redo_manager == null:
+		return _error(cmd_id, "NO_UNDO_MANAGER", "EditorUndoRedoManager not available")
+	
+	var scene_root = EditorInterface.get_edited_scene_root()
+	var history_id: int
+	var context: String
+	
+	if scene_root == null:
+		history_id = EditorUndoRedoManager.GLOBAL_HISTORY
+		context = "global"
+	else:
+		history_id = undo_redo_manager.get_object_history_id(scene_root)
+		context = "scene"
+	
+	var undo_redo: UndoRedo = undo_redo_manager.get_history_undo_redo(history_id)
+	
+	if undo_redo == null:
+		return _error(cmd_id, "NO_HISTORY", "No undo history found for current %s" % context)
+	
+	if not undo_redo.has_redo():
+		return _error(cmd_id, "NO_REDO", "No redo actions available")
+	
+	var success: bool = undo_redo.redo()
+	var action_name: String = undo_redo.get_current_action_name()
+	
+	return _success(cmd_id, {
+		"redone": success,
+		"action_name": action_name,
+		"context": context,
+		"history_id": history_id
+	})
+
+
+## Get undo/redo history status for the current context.
+## [br][br]
+## [param params]: No parameters required.
+func cmd_get_undo_redo_status(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var undo_redo_manager: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
+	if undo_redo_manager == null:
+		return _error(cmd_id, "NO_UNDO_MANAGER", "EditorUndoRedoManager not available")
+	
+	var scene_root = EditorInterface.get_edited_scene_root()
+	var history_id: int
+	var context: String
+	
+	if scene_root == null:
+		history_id = EditorUndoRedoManager.GLOBAL_HISTORY
+		context = "global"
+	else:
+		history_id = undo_redo_manager.get_object_history_id(scene_root)
+		context = "scene"
+	
+	var undo_redo: UndoRedo = undo_redo_manager.get_history_undo_redo(history_id)
+	
+	if undo_redo == null:
+		return _success(cmd_id, {
+			"has_undo": false,
+			"has_redo": false,
+			"context": context,
+			"history_count": 0
+		})
+	
+	return _success(cmd_id, {
+		"has_undo": undo_redo.has_undo(),
+		"has_redo": undo_redo.has_redo(),
+		"current_action": undo_redo.get_current_action(),
+		"current_action_name": undo_redo.get_current_action_name(),
+		"history_count": undo_redo.get_history_count(),
+		"version": undo_redo.get_version(),
+		"context": context,
+		"history_id": history_id
+	})

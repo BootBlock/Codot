@@ -274,6 +274,12 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _editor.cmd_get_project_config(cmd_id, params)
 		"set_project_config":
 			return _editor.cmd_set_project_config(cmd_id, params)
+		"undo":
+			return _editor.cmd_undo(cmd_id, params)
+		"redo":
+			return _editor.cmd_redo(cmd_id, params)
+		"get_undo_redo_status":
+			return _editor.cmd_get_undo_redo_status(cmd_id, params)
 		
 		# =================================================================
 		# Script Operations (commands_script.gd)
