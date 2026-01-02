@@ -20,7 +20,7 @@ CodotOutputCapture="*res://addons/codot/output_capture.gd"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/codot/plugin.cfg", "res://addons/gut/plugin.cfg")
 
 [physics]
 

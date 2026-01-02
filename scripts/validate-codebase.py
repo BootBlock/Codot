@@ -182,6 +182,77 @@ class CodebaseValidator:
                 # Scene with nodes but no resources might be okay
                 pass
     
+    def validate_uid_references(self) -> None:
+        """Validate that all UID references point to existing files."""
+        self.log("Checking UID references...")
+        
+        # Build a map of all valid UIDs in the project
+        valid_uids: set[str] = set()
+        uid_pattern = re.compile(r'uid="(uid://[a-z0-9]+)"')
+        
+        # First pass: collect all declared UIDs from .tscn, .tres, .gd.uid files
+        for ext in ['*.tscn', '*.tres', '*.gd.uid', '*.gdshader.uid']:
+            for file_path in self.root_path.rglob(ext):
+                # Skip non-codot addons
+                if 'addons' in str(file_path) and 'codot' not in str(file_path):
+                    continue
+                try:
+                    content = file_path.read_text(encoding='utf-8')
+                    # Look for uid declarations at the start of files
+                    for match in uid_pattern.finditer(content):
+                        valid_uids.add(match.group(1))
+                except Exception:
+                    continue
+        
+        # Also check .uid files (standalone UID files)
+        for uid_file in self.root_path.rglob('*.uid'):
+            if 'addons' in str(uid_file) and 'codot' not in str(uid_file):
+                continue
+            try:
+                content = uid_file.read_text(encoding='utf-8').strip()
+                if content.startswith('uid://'):
+                    valid_uids.add(content)
+            except Exception:
+                continue
+        
+        self.log(f"Found {len(valid_uids)} valid UIDs")
+        
+        # Second pass: check all UID references in project.godot and other files
+        uid_reference_pattern = re.compile(r'["=](uid://[a-z0-9]+)["\s\n]')
+        
+        files_to_check = [
+            self.root_path / 'project.godot',
+        ]
+        # Also check .import files and scene files for references
+        files_to_check.extend(self.root_path.rglob('*.tscn'))
+        files_to_check.extend(self.root_path.rglob('*.tres'))
+        
+        for file_path in files_to_check:
+            if not file_path.exists():
+                continue
+            if 'addons' in str(file_path) and 'codot' not in str(file_path):
+                continue
+            
+            try:
+                content = file_path.read_text(encoding='utf-8')
+                lines = content.splitlines()
+            except Exception:
+                continue
+            
+            for line_num, line in enumerate(lines, 1):
+                for match in uid_reference_pattern.finditer(line):
+                    uid = match.group(1)
+                    # Skip if this is a UID declaration (has uid= before it)
+                    if f'uid="{uid}"' in line:
+                        continue
+                    # Check if this UID reference is valid
+                    if uid not in valid_uids:
+                        self.add_violation(
+                            file_path, line_num, "INVALID_UID",
+                            f"Reference to non-existent UID: {uid}",
+                            severity="error"
+                        )
+
     def validate_directory_structure(self) -> None:
         """Validate the project directory structure."""
         
@@ -297,9 +368,13 @@ class CodebaseValidator:
             self.validate_scene_file(tscn_file)
         
         # Cross-file validations
-        print("\n[5/5] Checking command registration...")
+        print("\n[5/6] Checking command registration...")
         self.validate_command_registration()
         self.validate_python_command_definitions()
+        
+        # UID validation
+        print("\n[6/6] Checking UID references...")
+        self.validate_uid_references()
         
         # Report results
         print("\n" + "=" * 60)
