@@ -45,7 +45,8 @@ func _on_editor_message(message: String, data: Array) -> bool:
 			return true
 		"screenshot":
 			if data.size() > 0 and data[0] is Dictionary:
-				_take_screenshot(data[0].get("path", "user://screenshot.png"))
+				# Use call_deferred to schedule async screenshot
+				self.call_deferred("_take_screenshot_deferred", data[0].get("path", "user://screenshot.png"))
 			return true
 		"simulate_input":
 			if data.size() > 0 and data[0] is Dictionary:
@@ -70,7 +71,9 @@ func _handle_simulate_input(params: Dictionary) -> void:
 		
 		"key":
 			var key_event := InputEventKey.new()
-			key_event.keycode = params.get("keycode", 0) as Key
+			var keycode_val: int = params.get("keycode", 0)
+			key_event.keycode = keycode_val as Key
+			key_event.physical_keycode = keycode_val as Key
 			key_event.pressed = params.get("pressed", true)
 			key_event.echo = params.get("echo", false)
 			key_event.ctrl_pressed = params.get("ctrl", false)
@@ -121,6 +124,11 @@ func _handle_simulate_input(params: Dictionary) -> void:
 			"success": false,
 			"error": "Unknown input type: " + input_type,
 		})
+
+
+## Take a screenshot of the current viewport and save it (deferred wrapper)
+func _take_screenshot_deferred(path: String) -> void:
+	await _take_screenshot(path)
 
 
 ## Take a screenshot of the current viewport and save it

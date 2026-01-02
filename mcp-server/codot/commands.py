@@ -1956,6 +1956,7 @@ COMMANDS: dict[str, CommandDefinition] = {
                 },
                 "args": {
                     "type": "array",
+                    "items": {},
                     "description": "Arguments to pass with the signal",
                     "default": [],
                 },
@@ -1982,6 +1983,7 @@ COMMANDS: dict[str, CommandDefinition] = {
                 },
                 "args": {
                     "type": "array",
+                    "items": {},
                     "description": "Arguments to pass to the method",
                     "default": [],
                 },
