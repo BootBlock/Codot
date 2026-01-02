@@ -150,6 +150,92 @@ Or on error:
 | `FILE_NOT_FOUND` | File doesn't exist |
 | `DIALOG_OPEN` | Modal dialog blocking operation |
 
+## ⚠️ CRITICAL: Automation & Development Workflow
+
+### VS Code Window Reload Halts Automation
+
+**IMPORTANT**: Reloading the VS Code window (e.g., `Developer: Reload Window`) will:
+- Stop any in-progress AI chat/automation
+- Require the user to manually tell the AI to continue
+- Increase costs due to interrupted workflows
+
+**Avoid these actions during automation:**
+- `Developer: Reload Window`
+- Installing extensions that require reload
+- Changing workspace settings that trigger reload
+
+**If you need to test extension changes:**
+1. Complete current automation first
+2. Inform the user that a reload is needed
+3. After reload, remind the user to re-invoke the AI to continue
+
+### AI Can Restart Godot Plugins
+
+The AI can programmatically disable and re-enable Godot plugins using MCP commands:
+
+```
+# Disable and re-enable a plugin to reload it
+godot_disable_plugin(name="codot")
+godot_enable_plugin(name="codot")
+```
+
+**Use cases:**
+- Reloading after script changes in plugin code
+- Testing plugin activation/deactivation
+- Resetting plugin state
+
+**WARNING**: Disabling the Codot plugin will disconnect the WebSocket. You'll need to wait for reconnection after re-enabling.
+
+### MCP Server Changes Require Extension Repackaging
+
+When modifying the MCP server (`mcp-server/codot/`), changes are picked up automatically on next VS Code restart. However, if you modify the VS Code extension (`vscode-extension/`):
+
+1. **Rebuild the extension:**
+   ```bash
+   cd vscode-extension
+   npm run compile
+   ```
+
+2. **Reinstall the extension:**
+   ```bash
+   code --install-extension codot-bridge-0.1.0.vsix --force
+   ```
+
+3. **Reload VS Code window** (this will interrupt automation - see above)
+
+### Git Commit Requirements
+
+**ALWAYS** generate a Git commit title and description when completing work:
+
+```markdown
+## Git Commit
+
+**Title:** [type]: Brief description (max 50 chars)
+
+**Description:**
+- What was changed
+- Why it was changed
+- Any breaking changes or important notes
+
+**Type prefixes:**
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation only
+- style: Formatting, missing semicolons, etc.
+- refactor: Code change that neither fixes nor adds
+- test: Adding missing tests
+- chore: Maintenance, build changes
+```
+
+**Example:**
+```
+feat: Add delete button to archived prompts
+
+- Added 🗑 button next to Restore button in archived list
+- Implemented _on_delete_archived_prompt handler
+- Updated GUT tests for delete functionality
+```
+
 ## AI Agent Best Practices & Common Pitfalls
 
 ### ⚠️ CRITICAL: Avoid These Common Issues
@@ -465,13 +551,15 @@ codot/
 
 ## Available MCP Tools
 
-The MCP server exposes 64+ tools. Key categories:
+The MCP server exposes 80+ tools. Key categories:
 
 ### Scene & Node Operations
 - `godot_get_scene_tree` - Get scene hierarchy
 - `godot_create_node` - Create nodes
 - `godot_set_node_property` - Modify properties
 - `godot_delete_node` - Remove nodes
+- `godot_duplicate_scene` - Duplicate a scene
+- `godot_get_scene_dependencies` - Get all resources used by a scene
 
 ### Game Control
 - `godot_play` / `godot_stop` - Run/stop game
@@ -480,6 +568,21 @@ The MCP server exposes 64+ tools. Key categories:
 ### File Operations
 - `godot_read_file` / `godot_write_file` - File I/O
 - `godot_get_project_files` - List project files
+- `godot_create_directory` - Create directories
+- `godot_delete_file` / `godot_delete_directory` - Delete files/directories
+- `godot_rename_file` / `godot_copy_file` - Move/copy files
+- `godot_get_file_info` - Get file metadata
+
+### Editor Operations
+- `godot_refresh_filesystem` - Refresh FileSystem dock
+- `godot_reimport_resource` - Force reimport a resource
+- `godot_get_current_screen` / `godot_set_current_screen` - Switch editor views
+
+### Resource Operations
+- `godot_create_resource` - Create any resource type
+- `godot_duplicate_resource` - Duplicate a resource
+- `godot_set_resource_properties` - Set resource properties
+- `godot_list_resource_types` - List creatable resource types
 
 ### Testing (GUT)
 - `godot_gut_run_all` - Run all tests

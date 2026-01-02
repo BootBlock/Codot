@@ -112,16 +112,25 @@ func _setup_timers() -> void:
 	_reconnect_timer = Timer.new()
 	_reconnect_timer.wait_time = _get_setting("reconnect_interval", RECONNECT_INTERVAL)
 	_reconnect_timer.one_shot = false
-	_reconnect_timer.timeout.connect(_try_connect)
+	_reconnect_timer.timeout.connect(_on_reconnect_timer_timeout)
 	add_child(_reconnect_timer)
 	
 	# Auto-save timer - use setting for wait time
 	_auto_save_timer = Timer.new()
 	_auto_save_timer.wait_time = _get_setting("auto_save_delay", AUTO_SAVE_DELAY)
 	_auto_save_timer.one_shot = true
-	_auto_save_timer.timeout.connect(_perform_auto_save)
+	_auto_save_timer.timeout.connect(_on_auto_save_timer_timeout)
 	add_child(_auto_save_timer)
 
+
+## Timer callback for reconnection attempts.
+func _on_reconnect_timer_timeout() -> void:
+	_try_connect()
+
+
+## Timer callback for auto-save.
+func _on_auto_save_timer_timeout() -> void:
+	_perform_auto_save()
 
 func _connect_signals() -> void:
 	_new_prompt_button.pressed.connect(_on_new_prompt_pressed)

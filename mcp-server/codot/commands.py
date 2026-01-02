@@ -1,7 +1,7 @@
 """
 Command definitions for Codot tools.
 
-This module defines all 64+ commands available in the Codot system.
+This module defines all 80+ commands available in the Codot system.
 Each command is represented as a CommandDefinition that specifies:
 - A human-readable description for the MCP tool
 - An input schema (JSON Schema) defining the tool's parameters
@@ -10,19 +10,22 @@ Each command is represented as a CommandDefinition that specifies:
 Commands are organized into categories:
 - STATUS & INFO: Server health and project information
 - GAME CONTROL: Play, stop, and debug running games
-- SCENE MANAGEMENT: Open, save, create, and modify scenes
+- FILE OPERATIONS: Create, read, write, delete, copy, move files
+- SCENE MANAGEMENT: Open, save, create, duplicate, and modify scenes
 - NODE OPERATIONS: Create, modify, delete, and query scene tree nodes
+- EDITOR OPERATIONS: Control editor views, refresh filesystem
 - SCRIPT & FILE: Create and edit GDScript files
+- RESOURCE OPERATIONS: Create, duplicate, modify resources
 - PROJECT: Project-level settings and configuration
 - GUT TESTING: GUT test framework integration
 - INPUT SIMULATION: Simulate keyboard/mouse/controller input
 - SIGNALS: Signal inspection and emission
 - METHODS: Method invocation and listing
 - GROUPS: Node group management
-- RESOURCES: Resource loading and management
 - ANIMATION: AnimationPlayer control
 - AUDIO: Sound playback and management
 - DEBUG/PERFORMANCE: Profiling and performance monitoring
+- PLUGIN MANAGEMENT: Enable/disable/list plugins
 
 The COMMANDS dictionary maps command names (without 'godot_' prefix) to
 their definitions. The MCP server adds the 'godot_' prefix when exposing
@@ -338,6 +341,108 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "create_directory": CommandDefinition(
+        description="Create a directory (and any parent directories). Returns created (bool), already_exists (bool).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Directory path to create (e.g., 'res://new_folder/subfolder')",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "delete_file": CommandDefinition(
+        description="Delete a file. Returns deleted (bool).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path to delete",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "delete_directory": CommandDefinition(
+        description="Delete a directory. Must be empty unless recursive=true. Returns deleted (bool), files_deleted (int).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Directory path to delete",
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Delete all contents recursively (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "rename_file": CommandDefinition(
+        description="Rename or move a file or directory. Returns renamed (bool), type ('file' or 'directory').",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "from_path": {
+                    "type": "string",
+                    "description": "Source path",
+                },
+                "to_path": {
+                    "type": "string",
+                    "description": "Destination path",
+                },
+            },
+            "required": ["from_path", "to_path"],
+        },
+    ),
+    
+    "copy_file": CommandDefinition(
+        description="Copy a file to a new location. Returns copied (bool).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "from_path": {
+                    "type": "string",
+                    "description": "Source file path",
+                },
+                "to_path": {
+                    "type": "string",
+                    "description": "Destination file path",
+                },
+                "overwrite": {
+                    "type": "boolean",
+                    "description": "Overwrite if destination exists (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["from_path", "to_path"],
+        },
+    ),
+    
+    "get_file_info": CommandDefinition(
+        description="Get information about a file or directory (size, modified time, etc.).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File or directory path",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
     # ========================================================================
     # SCENE OPERATIONS
     # ========================================================================
@@ -541,6 +646,67 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "refresh_filesystem": CommandDefinition(
+        description="Refresh the editor's FileSystem dock to detect new/modified files. Use after creating files externally.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "reimport_resource": CommandDefinition(
+        description="Reimport a specific resource file. Useful after modifying import settings or source files.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Resource path to reimport",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "mark_modified": CommandDefinition(
+        description="Mark a resource as unsaved/modified in the editor.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Resource path to mark as modified",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "get_current_screen": CommandDefinition(
+        description="Get the current editor screen/view (2D, 3D, Script, AssetLib).",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "set_current_screen": CommandDefinition(
+        description="Switch to a specific editor screen (2D, 3D, Script, AssetLib).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "screen": {
+                    "type": "string",
+                    "description": "Screen name to switch to",
+                    "enum": ["2D", "3D", "Script", "AssetLib"],
+                },
+            },
+            "required": ["screen"],
+        },
+    ),
+    
     # ========================================================================
     # NODE MANIPULATION
     # ========================================================================
@@ -700,6 +866,77 @@ COMMANDS: dict[str, CommandDefinition] = {
                 },
             },
             "required": ["base_scene", "path"],
+        },
+    ),
+    
+    "duplicate_scene": CommandDefinition(
+        description="Duplicate an existing scene to a new path. Returns duplicated (bool), source_path, dest_path, opened (bool).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "source_path": {
+                    "type": "string",
+                    "description": "Source scene path to duplicate",
+                },
+                "dest_path": {
+                    "type": "string",
+                    "description": "Destination path for the duplicated scene",
+                },
+                "open": {
+                    "type": "boolean",
+                    "description": "Open the duplicated scene in editor (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["source_path", "dest_path"],
+        },
+    ),
+    
+    "get_scene_dependencies": CommandDefinition(
+        description="Get all dependencies of a scene (scripts, textures, other scenes, etc.). Returns dependencies array and count, organized by type.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Scene path to analyze",
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Include transitive dependencies (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "reload_current_scene": CommandDefinition(
+        description="Reload the currently edited scene from disk. Useful after external modifications.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "close_scene": CommandDefinition(
+        description="Close a scene in the editor. Can optionally save before closing.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Scene path to close (empty = current scene)",
+                    "default": "",
+                },
+                "save": {
+                    "type": "boolean",
+                    "description": "Save before closing (default: true)",
+                    "default": True,
+                },
+            },
+            "required": [],
         },
     ),
     
@@ -1304,6 +1541,98 @@ COMMANDS: dict[str, CommandDefinition] = {
                     "default": True,
                 },
             },
+            "required": [],
+        },
+    ),
+    
+    "create_resource": CommandDefinition(
+        description="Create a new resource of a specified type (e.g., Resource, ShaderMaterial, Theme). Returns created (bool), type, path, properties_set.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "Resource type to create (e.g., 'Resource', 'ShaderMaterial', 'Theme', 'StyleBoxFlat')",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Path to save the resource (e.g., 'res://resources/my_resource.tres')",
+                },
+                "properties": {
+                    "type": "object",
+                    "description": "Initial properties to set on the resource",
+                    "default": {},
+                },
+            },
+            "required": ["type", "path"],
+        },
+    ),
+    
+    "save_resource": CommandDefinition(
+        description="Save an existing resource to disk. Returns saved (bool), path, type.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Resource path to save",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "duplicate_resource": CommandDefinition(
+        description="Duplicate a resource to a new path. Returns duplicated (bool), source_path, dest_path, type.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "source_path": {
+                    "type": "string",
+                    "description": "Source resource path",
+                },
+                "dest_path": {
+                    "type": "string",
+                    "description": "Destination path for the duplicate",
+                },
+                "subresources": {
+                    "type": "boolean",
+                    "description": "Also duplicate embedded subresources (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["source_path", "dest_path"],
+        },
+    ),
+    
+    "set_resource_properties": CommandDefinition(
+        description="Set properties on an existing resource. Returns properties_set array and properties_failed array.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Resource path",
+                },
+                "properties": {
+                    "type": "object",
+                    "description": "Properties to set (key-value pairs)",
+                },
+                "save": {
+                    "type": "boolean",
+                    "description": "Save after setting properties (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["path", "properties"],
+        },
+    ),
+    
+    "list_resource_types": CommandDefinition(
+        description="List all available resource types that can be created. Returns types array and count.",
+        input_schema={
+            "type": "object",
+            "properties": {},
             "required": [],
         },
     ),

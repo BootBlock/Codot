@@ -180,6 +180,18 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _file.cmd_write_file(cmd_id, params)
 		"file_exists":
 			return _file.cmd_file_exists(cmd_id, params)
+		"create_directory":
+			return _file.cmd_create_directory(cmd_id, params)
+		"delete_file":
+			return _file.cmd_delete_file(cmd_id, params)
+		"delete_directory":
+			return _file.cmd_delete_directory(cmd_id, params)
+		"rename_file":
+			return _file.cmd_rename_file(cmd_id, params)
+		"copy_file":
+			return _file.cmd_copy_file(cmd_id, params)
+		"get_file_info":
+			return _file.cmd_get_file_info(cmd_id, params)
 		
 		# =================================================================
 		# Scene Operations (commands_scene.gd)
@@ -196,6 +208,14 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _scene.cmd_create_scene(cmd_id, params)
 		"new_inherited_scene":
 			return _scene.cmd_new_inherited_scene(cmd_id, params)
+		"duplicate_scene":
+			return _scene.cmd_duplicate_scene(cmd_id, params)
+		"get_scene_dependencies":
+			return _scene.cmd_get_scene_dependencies(cmd_id, params)
+		"reload_current_scene":
+			return _scene.cmd_reload_current_scene(cmd_id, params)
+		"close_scene":
+			return _scene.cmd_close_scene(cmd_id, params)
 		
 		# =================================================================
 		# Editor Operations (commands_editor.gd)
@@ -218,6 +238,16 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _editor.cmd_get_open_dialogs(cmd_id, params)
 		"dismiss_dialog":
 			return _editor.cmd_dismiss_dialog(cmd_id, params)
+		"refresh_filesystem":
+			return _editor.cmd_refresh_filesystem(cmd_id, params)
+		"reimport_resource":
+			return _editor.cmd_reimport_resource(cmd_id, params)
+		"mark_modified":
+			return _editor.cmd_mark_modified(cmd_id, params)
+		"get_current_screen":
+			return _editor.cmd_get_current_screen(cmd_id, params)
+		"set_current_screen":
+			return _editor.cmd_set_current_screen(cmd_id, params)
 		
 		# =================================================================
 		# Script Operations (commands_script.gd)
@@ -312,6 +342,16 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _resource.cmd_set_audio_bus_volume(cmd_id, params)
 		"set_audio_bus_mute":
 			return _resource.cmd_set_audio_bus_mute(cmd_id, params)
+		"create_resource":
+			return _resource.cmd_create_resource(cmd_id, params)
+		"save_resource":
+			return _resource.cmd_save_resource(cmd_id, params)
+		"duplicate_resource":
+			return _resource.cmd_duplicate_resource(cmd_id, params)
+		"set_resource_properties":
+			return _resource.cmd_set_resource_properties(cmd_id, params)
+		"list_resource_types":
+			return _resource.cmd_list_resource_types(cmd_id, params)
 		
 		# =================================================================
 		# Debug & Performance (commands_debug.gd)

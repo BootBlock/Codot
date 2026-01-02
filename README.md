@@ -6,11 +6,26 @@
 
 **Codot** is a bridge between AI coding agents and the Godot 4.x game engine. It enables AI systems like GitHub Copilot, Claude, and other MCP-compatible assistants to directly control Godot's editor and running games.
 
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Architecture](#️-architecture)
+- [Quick Start](#-quick-start)
+- [Installation Options](#-installation-options)
+- [Available Tools](#️-available-tools)
+- [Configuration](#-configuration)
+- [Running Tests](#-running-tests)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Links](#-links)
+
 ## ✨ Features
 
-- **64+ MCP Tools** - Create nodes, modify scenes, run games, capture debug output, and more
+- **80+ MCP Tools** - Create nodes, modify scenes, run games, capture debug output, and more
 - **Real-time Control** - Play, pause, and interact with running games
 - **Full Scene Access** - Read and modify the scene tree, node properties, and scripts
+- **Comprehensive File Operations** - Create, copy, move, delete files and directories
+- **Resource Management** - Create, duplicate, and modify any Godot resource type
 - **Debug Capture** - Capture errors, warnings, and print statements from running games
 - **GUT Integration** - Run and monitor GUT unit tests
 - **Input Simulation** - Simulate keyboard, mouse, and controller input

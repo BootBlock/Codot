@@ -291,3 +291,143 @@ To update Codot:
 - [ ] Restarted VS Code
 - [ ] Godot is running with project open
 - [ ] Asked the AI to "ping Godot" to verify connection
+
+
+## Command Reference
+
+Codot provides 80+ commands organized into categories:
+
+### Status & Info
+| Command | Description |
+|---------|-------------|
+| `ping` | Check if Godot is responding |
+| `get_status` | Get project info, version, running state |
+
+### Game Control
+| Command | Description |
+|---------|-------------|
+| `play` | Run the main scene |
+| `play_current` | Run the currently edited scene |
+| `play_custom_scene` | Run a specific scene by path |
+| `stop` | Stop the running game |
+| `is_playing` | Check if game is running |
+
+### File Operations
+| Command | Description |
+|---------|-------------|
+| `read_file` | Read file contents |
+| `write_file` | Write content to a file |
+| `file_exists` | Check if file/directory exists |
+| `get_project_files` | List project files with optional filtering |
+| `create_directory` | Create a directory (recursive) |
+| `delete_file` | Delete a file |
+| `delete_directory` | Delete a directory (optionally recursive) |
+| `rename_file` | Rename or move a file/directory |
+| `copy_file` | Copy a file |
+| `get_file_info` | Get file metadata (size, modified time) |
+
+### Scene Operations
+| Command | Description |
+|---------|-------------|
+| `open_scene` | Open a scene in the editor |
+| `save_scene` | Save the current scene |
+| `save_all_scenes` | Save all open scenes |
+| `get_open_scenes` | List currently open scenes |
+| `create_scene` | Create a new scene with root node |
+| `new_inherited_scene` | Create an inherited scene |
+| `duplicate_scene` | Duplicate a scene to a new path |
+| `get_scene_dependencies` | Get all resources used by a scene |
+| `reload_current_scene` | Reload scene from disk |
+| `close_scene` | Close a scene in the editor |
+
+### Node Operations
+| Command | Description |
+|---------|-------------|
+| `get_scene_tree` | Get the scene tree hierarchy |
+| `get_node_info` | Get node details |
+| `get_node_properties` | Get all node properties |
+| `create_node` | Create a new node |
+| `delete_node` | Delete a node |
+| `set_node_property` | Set a property on a node |
+| `rename_node` | Rename a node |
+| `move_node` | Move node to new parent |
+| `duplicate_node` | Duplicate a node |
+
+### Editor Operations
+| Command | Description |
+|---------|-------------|
+| `get_selected_nodes` | Get currently selected nodes |
+| `select_node` | Select a node in the editor |
+| `get_editor_state` | Get editor state (selected node, open scene, etc.) |
+| `get_editor_settings` | Get editor settings |
+| `get_project_settings` | Get project settings |
+| `list_resources` | List resources by type |
+| `get_open_dialogs` | Detect open modal dialogs |
+| `dismiss_dialog` | Close an open dialog |
+| `refresh_filesystem` | Refresh the FileSystem dock |
+| `reimport_resource` | Force reimport of a resource |
+| `get_current_screen` | Get current editor view (2D, 3D, Script, AssetLib) |
+| `set_current_screen` | Switch editor view |
+
+### Resource Operations
+| Command | Description |
+|---------|-------------|
+| `load_resource` | Load and get resource info |
+| `get_resource_info` | Get detailed resource properties |
+| `create_resource` | Create a new resource |
+| `save_resource` | Save a resource |
+| `duplicate_resource` | Duplicate a resource |
+| `set_resource_properties` | Set properties on a resource |
+| `list_resource_types` | List all creatable resource types |
+
+### Animation & Audio
+| Command | Description |
+|---------|-------------|
+| `list_animations` | List animations in an AnimationPlayer |
+| `play_animation` | Play an animation |
+| `stop_animation` | Stop an animation |
+| `list_audio_buses` | List audio buses |
+| `set_audio_bus_volume` | Set bus volume |
+| `set_audio_bus_mute` | Mute/unmute a bus |
+
+### Input Simulation
+| Command | Description |
+|---------|-------------|
+| `simulate_key` | Simulate keyboard input |
+| `simulate_mouse_button` | Simulate mouse clicks |
+| `simulate_mouse_motion` | Simulate mouse movement |
+| `simulate_action` | Simulate input action |
+| `get_input_actions` | List defined input actions |
+
+### Testing (GUT)
+| Command | Description |
+|---------|-------------|
+| `gut_check_installed` | Check if GUT is installed |
+| `gut_run_all` | Run all tests |
+| `gut_run_script` | Run tests in a specific file |
+| `gut_run_test` | Run a specific test |
+| `gut_get_results` | Get test results |
+| `gut_list_tests` | List available tests |
+| `gut_create_test` | Create a new test file |
+
+### Debug & Performance
+| Command | Description |
+|---------|-------------|
+| `get_debug_output` | Get captured debug output |
+| `clear_debug_log` | Clear debug log |
+| `get_debugger_status` | Get debugger plugin status |
+| `get_performance_info` | Get FPS, memory, object counts |
+| `get_memory_info` | Get memory usage details |
+| `print_to_console` | Print to Godot's output |
+| `get_recent_errors` | Get recent errors |
+| `run_and_capture` | Run a scene and capture all output |
+| `wait_for_output` | Wait for specific output patterns |
+| `take_screenshot` | Capture a screenshot |
+
+### Plugin Management
+| Command | Description |
+|---------|-------------|
+| `get_plugins` | List editor plugins |
+| `enable_plugin` | Enable a plugin |
+| `disable_plugin` | Disable a plugin |
+| `reload_project` | Reload the project |

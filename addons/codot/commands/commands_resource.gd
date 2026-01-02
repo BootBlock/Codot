@@ -252,6 +252,200 @@ func cmd_set_audio_bus_mute(cmd_id: Variant, params: Dictionary) -> Dictionary:
 
 
 # =============================================================================
+# Resource Creation & Management
+# =============================================================================
+
+## Create a new resource of a specified type.
+## [br][br]
+## [param params]:
+## - 'type' (String, required): Resource type (e.g., "Resource", "ShaderMaterial", "Theme").
+## - 'path' (String, required): Path to save the resource.
+## - 'properties' (Dictionary, optional): Initial properties to set.
+func cmd_create_resource(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var type: String = params.get("type", "")
+	var path: String = params.get("path", "")
+	var properties: Dictionary = params.get("properties", {})
+	
+	if type.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'type' parameter")
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	# Check if type exists and is a resource
+	if not ClassDB.class_exists(type):
+		return _error(cmd_id, "INVALID_TYPE", "Class does not exist: " + type)
+	if not ClassDB.is_parent_class(type, "Resource"):
+		return _error(cmd_id, "INVALID_TYPE", "Type is not a Resource: " + type)
+	
+	# Create the resource
+	var resource := ClassDB.instantiate(type) as Resource
+	if resource == null:
+		return _error(cmd_id, "CREATE_FAILED", "Failed to create resource of type: " + type)
+	
+	# Set properties
+	var set_props: Array = []
+	for key in properties:
+		if resource.has_property(key):
+			resource.set(key, properties[key])
+			set_props.append(key)
+	
+	# Ensure directory exists
+	var dir_path := path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
+	
+	# Save the resource
+	var result := ResourceSaver.save(resource, path)
+	if result != OK:
+		return _error(cmd_id, "SAVE_FAILED", "Failed to save resource to: " + path)
+	
+	return _success(cmd_id, {
+		"created": true,
+		"type": type,
+		"path": path,
+		"properties_set": set_props
+	})
+
+
+## Save an existing resource (reload and save to update).
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Resource path to save.
+func cmd_save_resource(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var path: String = params.get("path", "")
+	
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	if not ResourceLoader.exists(path):
+		return _error(cmd_id, "RESOURCE_NOT_FOUND", "Resource not found: " + path)
+	
+	var resource := load(path)
+	if resource == null:
+		return _error(cmd_id, "LOAD_FAILED", "Failed to load resource: " + path)
+	
+	var result := ResourceSaver.save(resource, path)
+	if result != OK:
+		return _error(cmd_id, "SAVE_FAILED", "Failed to save resource: " + path)
+	
+	return _success(cmd_id, {
+		"saved": true,
+		"path": path,
+		"type": resource.get_class()
+	})
+
+
+## Duplicate a resource to a new path.
+## [br][br]
+## [param params]:
+## - 'source_path' (String, required): Source resource path.
+## - 'dest_path' (String, required): Destination path.
+## - 'subresources' (bool, default false): Duplicate embedded subresources.
+func cmd_duplicate_resource(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var source_path: String = params.get("source_path", "")
+	var dest_path: String = params.get("dest_path", "")
+	var subresources: bool = params.get("subresources", false)
+	
+	if source_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'source_path' parameter")
+	if dest_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'dest_path' parameter")
+	
+	if not ResourceLoader.exists(source_path):
+		return _error(cmd_id, "RESOURCE_NOT_FOUND", "Source resource not found: " + source_path)
+	
+	var resource := load(source_path)
+	if resource == null:
+		return _error(cmd_id, "LOAD_FAILED", "Failed to load source resource")
+	
+	var duplicate := resource.duplicate(subresources)
+	if duplicate == null:
+		return _error(cmd_id, "DUPLICATE_FAILED", "Failed to duplicate resource")
+	
+	# Ensure directory exists
+	var dir_path := dest_path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
+	
+	var result := ResourceSaver.save(duplicate, dest_path)
+	if result != OK:
+		return _error(cmd_id, "SAVE_FAILED", "Failed to save duplicate to: " + dest_path)
+	
+	return _success(cmd_id, {
+		"duplicated": true,
+		"source_path": source_path,
+		"dest_path": dest_path,
+		"type": resource.get_class()
+	})
+
+
+## Set properties on an existing resource.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Resource path.
+## - 'properties' (Dictionary, required): Properties to set.
+## - 'save' (bool, default true): Save after setting properties.
+func cmd_set_resource_properties(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var path: String = params.get("path", "")
+	var properties: Dictionary = params.get("properties", {})
+	var save: bool = params.get("save", true)
+	
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	if properties.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'properties' parameter")
+	
+	if not ResourceLoader.exists(path):
+		return _error(cmd_id, "RESOURCE_NOT_FOUND", "Resource not found: " + path)
+	
+	var resource := load(path)
+	if resource == null:
+		return _error(cmd_id, "LOAD_FAILED", "Failed to load resource")
+	
+	# Set properties
+	var set_props: Array = []
+	var failed_props: Array = []
+	
+	for key in properties:
+		if resource.has_property(key):
+			resource.set(key, properties[key])
+			set_props.append(key)
+		else:
+			failed_props.append(key)
+	
+	# Save if requested
+	if save:
+		var result := ResourceSaver.save(resource, path)
+		if result != OK:
+			return _error(cmd_id, "SAVE_FAILED", "Set properties but failed to save")
+	
+	return _success(cmd_id, {
+		"path": path,
+		"properties_set": set_props,
+		"properties_failed": failed_props,
+		"saved": save
+	})
+
+
+## List available resource types that can be created.
+func cmd_list_resource_types(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var resource_types: Array = []
+	
+	# Get all classes that inherit from Resource
+	var classes := ClassDB.get_class_list()
+	for cls in classes:
+		if ClassDB.is_parent_class(cls, "Resource") and ClassDB.can_instantiate(cls):
+			resource_types.append(cls)
+	
+	resource_types.sort()
+	
+	return _success(cmd_id, {
+		"types": resource_types,
+		"count": resource_types.size()
+	})
+
+
+# =============================================================================
 # Helper Functions
 # =============================================================================
 

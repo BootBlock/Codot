@@ -336,3 +336,130 @@ func cmd_list_resources(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		files.append_array(ext_files)
 	
 	return _success(cmd_id, {"resources": files, "type": resource_type, "count": files.size()})
+
+
+## Refresh the editor's FileSystem dock to detect new/modified files.
+## [br][br]
+## Use this after creating or modifying files externally to make the editor aware.
+func cmd_refresh_filesystem(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var filesystem := editor_interface.get_resource_filesystem()
+	if filesystem == null:
+		return _error(cmd_id, "NO_FILESYSTEM", "Cannot access editor filesystem")
+	
+	# Scan the filesystem
+	filesystem.scan()
+	
+	return _success(cmd_id, {
+		"refreshed": true,
+		"scanning": filesystem.is_scanning()
+	})
+
+
+## Reimport a specific resource file.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Resource path to reimport.
+func cmd_reimport_resource(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var path: String = params.get("path", "")
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	if not FileAccess.file_exists(path):
+		return _error(cmd_id, "FILE_NOT_FOUND", "File not found: " + path)
+	
+	var filesystem := editor_interface.get_resource_filesystem()
+	if filesystem == null:
+		return _error(cmd_id, "NO_FILESYSTEM", "Cannot access editor filesystem")
+	
+	# Update the file in the filesystem
+	filesystem.update_file(path)
+	
+	return _success(cmd_id, {
+		"reimported": true,
+		"path": path
+	})
+
+
+## Mark a resource as unsaved/modified.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Resource path to mark as modified.
+func cmd_mark_modified(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var path: String = params.get("path", "")
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	if not ResourceLoader.exists(path):
+		return _error(cmd_id, "RESOURCE_NOT_FOUND", "Resource not found: " + path)
+	
+	editor_interface.mark_scene_as_unsaved()
+	
+	return _success(cmd_id, {"marked": true, "path": path})
+
+
+## Get current editor screen/view (2D, 3D, Script, AssetLib).
+func cmd_get_current_screen(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var main_screen := editor_interface.get_editor_main_screen()
+	var screen_name := ""
+	
+	# Determine current screen from focused control
+	var focused := editor_interface.get_base_control().get_viewport().gui_get_focus_owner()
+	if focused != null:
+		var parent := focused.get_parent()
+		while parent != null:
+			if parent.name == "ScriptEditor":
+				screen_name = "Script"
+				break
+			elif parent.name == "Node3DEditor":
+				screen_name = "3D"
+				break
+			elif parent.name == "CanvasItemEditor":
+				screen_name = "2D"
+				break
+			elif parent.name == "EditorAssetLibrary":
+				screen_name = "AssetLib"
+				break
+			parent = parent.get_parent()
+	
+	return _success(cmd_id, {
+		"screen": screen_name if screen_name else "Unknown",
+		"main_screen_available": main_screen != null
+	})
+
+
+## Switch to a specific editor screen (2D, 3D, Script, AssetLib).
+## [br][br]
+## [param params]:
+## - 'screen' (String, required): Screen name to switch to.
+func cmd_set_current_screen(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var screen: String = params.get("screen", "")
+	if screen.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'screen' parameter (2D, 3D, Script, AssetLib)")
+	
+	var valid_screens := ["2D", "3D", "Script", "AssetLib"]
+	if screen not in valid_screens:
+		return _error(cmd_id, "INVALID_SCREEN", "Invalid screen. Valid: " + str(valid_screens))
+	
+	editor_interface.set_main_screen_editor(screen)
+	
+	return _success(cmd_id, {"screen": screen, "switched": true})
