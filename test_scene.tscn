@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://5b8us66xj5n"]
+
+[node name="TestRoot" type="Node2D" unique_id=1663040669]
+
+[node name="PlayerSprite" type="Sprite2D" parent="." unique_id=282128880]
+position = Vector2(100, 200)
+
+[node name="ScoreLabel" type="Label" parent="." unique_id=142269369]
+text = "Score: 0"
+
+[node name="Enemies" type="Node2D" parent="." unique_id=1951791431]
+
+[node name="Enemy1" type="CharacterBody2D" parent="Enemies" unique_id=170939944]
+
+[node name="@CharacterBody2D@19514" type="CharacterBody2D" parent="Enemies" unique_id=314897864]

@@ -1,0 +1,15 @@
+{
+  "mcp": {
+    "servers": {
+      "codot": {
+        "command": "python",
+        "args": ["-m", "codot.server"],
+        "cwd": "${workspaceFolder}/mcp-src",
+        "env": {
+          "CODOT_HOST": "127.0.0.1",
+          "CODOT_PORT": "6850"
+        }
+      }
+    }
+  }
+}

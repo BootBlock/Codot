@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://dft7rraxp5gp2"]
+
+[ext_resource type="Script" path="res://test_error_capture.gd" id="1_test"]
+
+[node name="TestErrorCapture" type="Node"]
+script = ExtResource("1_test")
+test_mode = "soft"
