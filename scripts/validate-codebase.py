@@ -137,6 +137,12 @@ class CodebaseValidator:
         self.signal_patterns = [
             (r'\.connect\([^,]+\)(?!\s*#)', 'Signal connect() without explicit bind - ensure this is intentional'),
         ]
+        
+        # Options Dictionary patterns (for functions that accept options dict)
+        self.options_dict_patterns = [
+            # Detect when helper functions still expect int when they should expect Dictionary
+            (r'def\s+_\w+\([^)]*max_depth\s*:\s*int[^)]*\)', 'Function may need options: Dictionary instead of max_depth: int'),
+        ]
     
     def log(self, message: str) -> None:
         """Print verbose log message."""
@@ -299,6 +305,18 @@ class CodebaseValidator:
                     if not re.search(r'params\.get\([^,]+,\s*[^)]+\)', line):
                         self.add_violation(file_path, line_num, "MISSING_DEFAULT",
                             "params.get() without default value may return null", severity="info")
+        
+        # Rule 11: Check for duplicate function definitions
+        func_definitions: dict[str, int] = {}
+        for line_num, line in enumerate(lines, 1):
+            func_match = re.match(r'^func\s+(\w+)\s*\(', line)
+            if func_match:
+                func_name = func_match.group(1)
+                if func_name in func_definitions:
+                    self.add_violation(file_path, line_num, "DUPLICATE_FUNC",
+                        f"Function '{func_name}' already defined at line {func_definitions[func_name]}", severity="error")
+                else:
+                    func_definitions[func_name] = line_num
     
     def validate_python_file(self, cached_file: CachedFile) -> None:
         """Validate a Python file for violations."""

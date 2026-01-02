@@ -577,3 +577,95 @@ func cmd_detach_script(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		"detached": had_script,
 		"node": node_path
 	})
+
+
+## Make an inherited scene node local.
+## [br][br]
+## This breaks the inheritance link for a node that came from an inherited scene,
+## making all its properties editable locally.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Node path to make local.
+func cmd_make_node_local(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	var root = _get_scene_root()
+	var node: Node = root if node_path == "." else root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	# Check if this is the root node (can't make root local)
+	if node == root:
+		return _error(cmd_id, "INVALID_OPERATION", "Cannot make root node local")
+	
+	# Check if node is from an inherited scene
+	var scene_file_path: String = node.scene_file_path
+	if scene_file_path.is_empty():
+		# Not an instanced scene node - already local
+		return _success(cmd_id, {
+			"made_local": false,
+			"node": node_path,
+			"reason": "Node is not from an instanced scene"
+		})
+	
+	# Clear the scene_file_path to make it local
+	# This effectively "unlinks" the node from its original scene
+	node.scene_file_path = ""
+	
+	# Also ensure owner is set to current scene root
+	node.owner = root
+	
+	return _success(cmd_id, {
+		"made_local": true,
+		"node": node_path,
+		"original_scene": scene_file_path
+	})
+
+
+## Get node hierarchy information including scene instance status.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Node path.
+func cmd_get_node_hierarchy_info(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	var root = _get_scene_root()
+	var node: Node = root if node_path == "." else root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	var hierarchy: Array = []
+	var current: Node = node
+	
+	while current != null:
+		var info: Dictionary = {
+			"name": current.name,
+			"type": current.get_class(),
+			"path": str(current.get_path()),
+			"is_scene_instance": not current.scene_file_path.is_empty(),
+		}
+		if not current.scene_file_path.is_empty():
+			info["scene_file"] = current.scene_file_path
+		if current.owner != null:
+			info["owner"] = str(current.owner.get_path())
+		
+		hierarchy.append(info)
+		current = current.get_parent()
+	
+	return _success(cmd_id, {
+		"node": node_path,
+		"hierarchy": hierarchy,
+		"depth": hierarchy.size()
+	})

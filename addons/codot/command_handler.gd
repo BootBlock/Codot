@@ -284,6 +284,8 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _editor.cmd_redo(cmd_id, params)
 		"get_undo_redo_status":
 			return _editor.cmd_get_undo_redo_status(cmd_id, params)
+		"get_recent_files":
+			return _editor.cmd_get_recent_files(cmd_id, params)
 		
 		# =================================================================
 		# Script Operations (commands_script.gd)
@@ -322,6 +324,10 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _node.cmd_attach_script(cmd_id, params)
 		"detach_script":
 			return _node.cmd_detach_script(cmd_id, params)
+		"make_node_local":
+			return _node.cmd_make_node_local(cmd_id, params)
+		"get_node_hierarchy_info":
+			return _node.cmd_get_node_hierarchy_info(cmd_id, params)
 		
 		# =================================================================
 		# Input Simulation (commands_input.gd)

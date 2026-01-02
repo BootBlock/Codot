@@ -252,6 +252,26 @@ COMMANDS: dict[str, CommandDefinition] = {
                     "description": "Maximum depth to traverse (default: 10)",
                     "default": 10,
                 },
+                "include_visibility": {
+                    "type": "boolean",
+                    "description": "Include visibility state for CanvasItem/Node3D nodes",
+                    "default": False,
+                },
+                "include_scripts": {
+                    "type": "boolean",
+                    "description": "Include script paths in output",
+                    "default": True,
+                },
+                "filter_type": {
+                    "type": "string",
+                    "description": "Only include nodes of this type (e.g., 'Sprite2D', 'CollisionShape2D')",
+                    "default": "",
+                },
+                "filter_name": {
+                    "type": "string",
+                    "description": "Only include nodes matching this name pattern",
+                    "default": "",
+                },
             },
             "required": [],
         },
@@ -958,6 +978,26 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "get_recent_files": CommandDefinition(
+        description="Get list of recently opened scenes and files",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "max_count": {
+                    "type": "integer",
+                    "description": "Maximum number of files to return (default: 20)",
+                    "default": 20,
+                },
+                "filter": {
+                    "type": "string",
+                    "description": "Filter by extension, e.g., 'tscn', 'gd'",
+                    "default": "",
+                },
+            },
+            "required": [],
+        },
+    ),
+    
     # ========================================================================
     # NODE MANIPULATION
     # ========================================================================
@@ -1133,6 +1173,34 @@ COMMANDS: dict[str, CommandDefinition] = {
     
     "detach_script": CommandDefinition(
         description="Detach (remove) the script from a node",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Node path",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "make_node_local": CommandDefinition(
+        description="Make an inherited scene node local, breaking the inheritance link",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Node path to make local",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "get_node_hierarchy_info": CommandDefinition(
+        description="Get node hierarchy information including scene instance status",
         input_schema={
             "type": "object",
             "properties": {

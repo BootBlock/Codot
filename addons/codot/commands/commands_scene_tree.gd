@@ -9,6 +9,13 @@ extends "command_base.gd"
 
 
 ## Get the scene tree structure as a nested dictionary.
+## [br][br]
+## [param params]:
+## - 'max_depth' (int, optional): Maximum depth to traverse (default 10).
+## - 'include_visibility' (bool, optional): Include visibility state (default false).
+## - 'include_scripts' (bool, optional): Include script paths (default true).
+## - 'filter_type' (String, optional): Only include nodes of this type.
+## - 'filter_name' (String, optional): Only include nodes matching this name pattern.
 func cmd_get_scene_tree(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	var err = _require_editor(cmd_id)
 	if not err.is_empty():
@@ -18,27 +25,53 @@ func cmd_get_scene_tree(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	if root == null:
 		return _success(cmd_id, {"tree": null, "message": "No scene open"})
 	
-	var max_depth: int = params.get("max_depth", 10)
-	var tree_data: Dictionary = _node_to_dict(root, 0, max_depth)
+	var options: Dictionary = {
+		"max_depth": params.get("max_depth", 10),
+		"include_visibility": params.get("include_visibility", false),
+		"include_scripts": params.get("include_scripts", true),
+		"filter_type": params.get("filter_type", ""),
+		"filter_name": params.get("filter_name", ""),
+	}
+	
+	var tree_data: Dictionary = _node_to_dict(root, 0, options)
 	return _success(cmd_id, {"tree": tree_data})
 
 
 ## Convert a node and its children to a dictionary representation.
-func _node_to_dict(node: Node, depth: int, max_depth: int) -> Dictionary:
+func _node_to_dict(node: Node, depth: int, options: Dictionary) -> Dictionary:
 	var data: Dictionary = {
 		"name": node.name,
 		"type": node.get_class(),
 		"path": str(node.get_path()),
 	}
 	
-	var script = node.get_script()
-	if script != null:
-		data["script"] = script.resource_path
+	# Include script path if requested
+	if options.include_scripts:
+		var script = node.get_script()
+		if script != null:
+			data["script"] = script.resource_path
 	
-	if depth < max_depth:
+	# Include visibility state if requested
+	if options.include_visibility:
+		if node is CanvasItem:
+			data["visible"] = node.visible
+			data["modulate_alpha"] = node.modulate.a
+		elif node is Node3D:
+			data["visible"] = node.visible
+	
+	# Process children
+	if depth < options.max_depth:
 		var children: Array = []
 		for child in node.get_children():
-			children.append(_node_to_dict(child, depth + 1, max_depth))
+			# Apply filters
+			if not options.filter_type.is_empty():
+				if not child.is_class(options.filter_type):
+					continue
+			if not options.filter_name.is_empty():
+				if not child.name.matchn("*" + options.filter_name + "*"):
+					continue
+			
+			children.append(_node_to_dict(child, depth + 1, options))
 		if children.size() > 0:
 			data["children"] = children
 	

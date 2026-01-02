@@ -643,3 +643,52 @@ func cmd_get_undo_redo_status(cmd_id: Variant, _params: Dictionary) -> Dictionar
 		"context": context,
 		"history_id": history_id
 	})
+
+
+## Get list of recently opened scenes and files.
+## [br][br]
+## [param params]:
+## - 'max_count' (int, optional): Maximum number of files to return (default 20).
+## - 'filter' (String, optional): Filter by extension, e.g., "tscn", "gd".
+func cmd_get_recent_files(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var max_count: int = params.get("max_count", 20)
+	var ext_filter: String = params.get("filter", "")
+	
+	# Get recent scenes from editor settings
+	var editor_settings: EditorSettings = EditorInterface.get_editor_settings()
+	if editor_settings == null:
+		return _error(cmd_id, "NO_SETTINGS", "EditorSettings not available")
+	
+	var recent_scenes: PackedStringArray = editor_settings.get_recent_dirs()
+	var recent_files: Array = []
+	
+	# Also check project's recently opened scenes via EditorInterface
+	var open_scenes := editor_interface.get_open_scenes()
+	for scene_path in open_scenes:
+		if not ext_filter.is_empty():
+			if not scene_path.get_extension().to_lower() == ext_filter.to_lower():
+				continue
+		recent_files.append({
+			"path": scene_path,
+			"type": "scene",
+			"currently_open": true
+		})
+	
+	# Add recent directories (commonly accessed paths)
+	for dir_path in recent_scenes:
+		if recent_files.size() >= max_count:
+			break
+		recent_files.append({
+			"path": dir_path,
+			"type": "directory",
+			"currently_open": false
+		})
+	
+	return _success(cmd_id, {
+		"files": recent_files.slice(0, max_count),
+		"count": min(recent_files.size(), max_count)
+	})
