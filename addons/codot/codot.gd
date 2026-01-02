@@ -22,7 +22,7 @@ func _enter_tree() -> void:
 	if _editor_settings:
 		_editor_settings.settings_changed.connect(_on_settings_changed)
 	
-	_log("Initializing Codot plugin...")
+	_log("Initialising Codot plugin...")
 	
 	# Initialize the debugger plugin for capturing game output
 	_debugger_plugin = DebuggerPluginRef.new()

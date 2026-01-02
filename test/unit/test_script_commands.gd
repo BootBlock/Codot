@@ -169,6 +169,8 @@ func test_get_script_errors_nonexistent_script() -> void:
 	
 	assert_true(response["success"], "Should still succeed")
 	assert_true(response["result"]["errors"].size() > 0, "Should have errors for nonexistent script")
+	# GUT treats GDScript loading errors as engine errors, so acknowledge them
+	assert_engine_error(2, "Expected engine errors when loading nonexistent script")
 
 
 func test_open_script_requires_editor() -> void:

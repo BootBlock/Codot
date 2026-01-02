@@ -2719,4 +2719,390 @@ COMMANDS: dict[str, CommandDefinition] = {
             "required": ["scene_path", "script_content"],
         },
     ),
+    
+    # ========================================================================
+    # EVENT SUBSCRIPTION SYSTEM
+    # ========================================================================
+    "list_event_types": CommandDefinition(
+        description="List all available event types for subscription. Events can be subscribed to for real-time notifications about editor and game state changes.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "subscribe": CommandDefinition(
+        description="Subscribe to an event type to receive notifications. Returns a subscription_id for managing the subscription.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string",
+                    "description": "Unique client identifier for this subscription",
+                },
+                "event_type": {
+                    "type": "string",
+                    "description": "Type of event to subscribe to (e.g., 'scene_changed', 'node_added', 'debug_output')",
+                },
+                "filter": {
+                    "type": "object",
+                    "description": "Optional filter criteria for the event (e.g., {'node_type': 'Node2D'} for node_added)",
+                },
+            },
+            "required": ["client_id", "event_type"],
+        },
+    ),
+    
+    "unsubscribe": CommandDefinition(
+        description="Unsubscribe from an event using the subscription_id.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "subscription_id": {
+                    "type": "string",
+                    "description": "The subscription ID returned from subscribe",
+                },
+            },
+            "required": ["subscription_id"],
+        },
+    ),
+    
+    "get_subscriptions": CommandDefinition(
+        description="Get all active subscriptions for a client.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string",
+                    "description": "Unique client identifier",
+                },
+            },
+            "required": ["client_id"],
+        },
+    ),
+    
+    "poll_events": CommandDefinition(
+        description="Poll for pending events for a client. Use when push notifications are not available.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string",
+                    "description": "Unique client identifier",
+                },
+                "max_events": {
+                    "type": "integer",
+                    "description": "Maximum number of events to return (default: 100)",
+                    "default": 100,
+                },
+                "clear": {
+                    "type": "boolean",
+                    "description": "Clear events after polling (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["client_id"],
+        },
+    ),
+    
+    "unsubscribe_all": CommandDefinition(
+        description="Unsubscribe from all events for a client. Useful for cleanup.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string",
+                    "description": "Unique client identifier",
+                },
+            },
+            "required": ["client_id"],
+        },
+    ),
+    
+    "get_subscription_stats": CommandDefinition(
+        description="Get statistics about event subscriptions.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    # ========================================================================
+    # ASSET MANAGEMENT
+    # ========================================================================
+    "get_import_settings": CommandDefinition(
+        description="Get import settings for a resource. Shows how textures, audio, models, etc. are configured for import.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the resource file (e.g., 'res://textures/player.png')",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "set_import_settings": CommandDefinition(
+        description="Modify import settings for a resource and optionally reimport it.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the resource file",
+                },
+                "settings": {
+                    "type": "object",
+                    "description": "Dictionary of import settings to change (e.g., {'compress/mode': 2, 'flags/filter': false})",
+                },
+                "reimport": {
+                    "type": "boolean",
+                    "description": "Reimport the resource after changing settings (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["path", "settings"],
+        },
+    ),
+    
+    "get_resource_dependencies": CommandDefinition(
+        description="Get dependencies of a resource - what it depends on and what depends on it.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the resource file",
+                },
+                "include_dependents": {
+                    "type": "boolean",
+                    "description": "Also scan for files that depend on this resource (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "find_broken_references": CommandDefinition(
+        description="Scan project for broken resource references. Finds missing files, invalid paths, and orphaned resources.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "directory": {
+                    "type": "string",
+                    "description": "Directory to scan (default: 'res://' for entire project)",
+                    "default": "res://",
+                },
+                "extensions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "File extensions to scan (default: ['.tscn', '.tres', '.gd'])",
+                },
+            },
+            "required": [],
+        },
+    ),
+    
+    # ========================================================================
+    # EDITOR THEME/LAYOUT
+    # ========================================================================
+    "get_editor_theme": CommandDefinition(
+        description="Get current editor theme information including colors, fonts, and style settings.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "get_editor_layout": CommandDefinition(
+        description="Get current editor layout including dock positions, panel visibility, and window configuration.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "get_editor_viewport_info": CommandDefinition(
+        description="Get viewport information for 2D/3D editors including camera position, zoom, and view settings.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    # ========================================================================
+    # ANIMATION
+    # ========================================================================
+    "create_animation": CommandDefinition(
+        description="Create a new animation in an AnimationPlayer node.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "node_path": {
+                    "type": "string",
+                    "description": "Path to the AnimationPlayer node",
+                },
+                "animation_name": {
+                    "type": "string",
+                    "description": "Name for the new animation",
+                },
+                "length": {
+                    "type": "number",
+                    "description": "Length of the animation in seconds (default: 1.0)",
+                    "default": 1.0,
+                },
+                "loop_mode": {
+                    "type": "string",
+                    "enum": ["none", "linear", "pingpong"],
+                    "description": "Loop mode: 'none', 'linear' (loop), or 'pingpong' (back and forth)",
+                    "default": "none",
+                },
+            },
+            "required": ["node_path", "animation_name"],
+        },
+    ),
+    
+    "add_animation_track": CommandDefinition(
+        description="Add a track to an animation (value, position, rotation, scale, method, etc.).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "node_path": {
+                    "type": "string",
+                    "description": "Path to the AnimationPlayer node",
+                },
+                "animation_name": {
+                    "type": "string",
+                    "description": "Name of the animation to add the track to",
+                },
+                "track_type": {
+                    "type": "string",
+                    "enum": ["value", "position_3d", "rotation_3d", "scale_3d", "blend_shape", "method", "bezier", "audio", "animation"],
+                    "description": "Type of track to create",
+                },
+                "track_path": {
+                    "type": "string",
+                    "description": "Node path and property for the track (e.g., 'Sprite2D:modulate' or 'Player:position')",
+                },
+            },
+            "required": ["node_path", "animation_name", "track_type", "track_path"],
+        },
+    ),
+    
+    "add_animation_keyframe": CommandDefinition(
+        description="Add a keyframe to an animation track at a specific time.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "node_path": {
+                    "type": "string",
+                    "description": "Path to the AnimationPlayer node",
+                },
+                "animation_name": {
+                    "type": "string",
+                    "description": "Name of the animation",
+                },
+                "track_index": {
+                    "type": "integer",
+                    "description": "Index of the track (0-based)",
+                },
+                "time": {
+                    "type": "number",
+                    "description": "Time in seconds for the keyframe",
+                },
+                "value": {
+                    "description": "Value for the keyframe (type depends on track type)",
+                },
+            },
+            "required": ["node_path", "animation_name", "track_index", "time", "value"],
+        },
+    ),
+    
+    "preview_animation": CommandDefinition(
+        description="Preview an animation in the editor by playing it.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "node_path": {
+                    "type": "string",
+                    "description": "Path to the AnimationPlayer node",
+                },
+                "animation_name": {
+                    "type": "string",
+                    "description": "Name of the animation to preview",
+                },
+                "seek_time": {
+                    "type": "number",
+                    "description": "Optional time to seek to before playing",
+                },
+            },
+            "required": ["node_path", "animation_name"],
+        },
+    ),
+    
+    # ========================================================================
+    # SCENE DIFF
+    # ========================================================================
+    "get_scene_diff": CommandDefinition(
+        description="Compare current scene state to the saved version. Shows added/removed/modified nodes and property changes.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    # ========================================================================
+    # PROFILER/MEMORY
+    # ========================================================================
+    "get_profiler_data": CommandDefinition(
+        description="Get comprehensive profiler data from Performance monitors (FPS, memory, objects, physics, rendering, etc.).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": ["all", "time", "memory", "objects", "rendering", "physics_2d", "physics_3d", "navigation"],
+                    "description": "Category filter (default: 'all')",
+                    "default": "all",
+                },
+            },
+            "required": [],
+        },
+    ),
+    
+    "get_orphan_nodes": CommandDefinition(
+        description="Get orphan node count to detect potential memory leaks. Orphan nodes are nodes not in the scene tree.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "get_object_stats": CommandDefinition(
+        description="Get detailed object statistics including counts, memory usage, and resource stats.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "get_stack_info": CommandDefinition(
+        description="Get current GDScript call stack information for debugging.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
 }

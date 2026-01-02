@@ -692,3 +692,162 @@ func cmd_get_recent_files(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		"files": recent_files.slice(0, max_count),
 		"count": min(recent_files.size(), max_count)
 	})
+
+
+# =============================================================================
+# Editor Theme & Layout
+# =============================================================================
+
+## Get current editor theme colors.
+## [br][br]
+## [param params]:
+## - 'category' (String, optional): Filter by color category.
+func cmd_get_editor_theme(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var category: String = params.get("category", "")
+	var base_control := editor_interface.get_base_control()
+	var theme: Theme = base_control.get_theme()
+	
+	var colors: Dictionary = {}
+	var fonts: Dictionary = {}
+	var icons: Dictionary = {}
+	var constants: Dictionary = {}
+	
+	# Get commonly used editor colors
+	var color_names := [
+		"accent_color", "base_color", "contrast_color_1", "contrast_color_2",
+		"dark_color_1", "dark_color_2", "dark_color_3",
+		"font_color", "font_disabled_color", "font_focus_color", "font_hover_color",
+		"font_outline_color", "font_pressed_color", "font_readonly_color",
+		"error_color", "warning_color", "success_color",
+		"selection_color", "box_selection_fill_color", "box_selection_stroke_color",
+		"caret_color", "current_line_color"
+	]
+	
+	# Try to get colors from editor settings
+	var settings := editor_interface.get_editor_settings()
+	
+	colors["accent_color"] = _color_to_hex(settings.get_setting("interface/theme/accent_color"))
+	colors["base_color"] = _color_to_hex(settings.get_setting("interface/theme/base_color"))
+	colors["contrast"] = settings.get_setting("interface/theme/contrast")
+	
+	# Get colors from theme if available
+	if theme:
+		for color_type in theme.get_color_type_list():
+			if category.is_empty() or color_type.contains(category):
+				var type_colors: Dictionary = {}
+				for color_name in theme.get_color_list(color_type):
+					type_colors[color_name] = _color_to_hex(theme.get_color(color_name, color_type))
+				if not type_colors.is_empty():
+					colors[color_type] = type_colors
+	
+	# Get font sizes
+	fonts["main_font_size"] = settings.get_setting("interface/editor/main_font_size")
+	fonts["code_font_size"] = settings.get_setting("interface/editor/code_font_size")
+	
+	return _success(cmd_id, {
+		"colors": colors,
+		"fonts": fonts,
+		"preset": settings.get_setting("interface/theme/preset"),
+		"icon_and_font_color": settings.get_setting("interface/theme/icon_and_font_color")
+	})
+
+
+## Helper: Convert color to hex string.
+func _color_to_hex(color: Variant) -> String:
+	if color is Color:
+		return color.to_html(true)
+	return ""
+
+
+## Get current editor layout (dock positions, window sizes).
+## [br][br]
+## Returns information about editor panel arrangement.
+func cmd_get_editor_layout(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var base_control := editor_interface.get_base_control()
+	var screen := editor_interface.get_editor_main_screen()
+	
+	var layout: Dictionary = {
+		"main_screen": {
+			"current": _get_current_screen_name(),
+			"size": {
+				"x": screen.size.x if screen else 0,
+				"y": screen.size.y if screen else 0
+			}
+		},
+		"editor_window": {
+			"size": {
+				"x": base_control.get_viewport().size.x,
+				"y": base_control.get_viewport().size.y
+			}
+		},
+		"scale": editor_interface.get_editor_scale()
+	}
+	
+	# Get information about visible panels
+	var visible_panels: Array = []
+	for child in base_control.get_children():
+		if child is Control and child.visible:
+			visible_panels.append({
+				"name": child.name,
+				"class": child.get_class(),
+				"position": {"x": child.position.x, "y": child.position.y},
+				"size": {"x": child.size.x, "y": child.size.y}
+			})
+	
+	layout["visible_panels"] = visible_panels
+	
+	return _success(cmd_id, layout)
+
+
+## Get current screen name.
+func _get_current_screen_name() -> String:
+	if editor_interface == null:
+		return "unknown"
+	
+	var main_screen := editor_interface.get_editor_main_screen()
+	if main_screen == null:
+		return "unknown"
+	
+	# Check which main screen is visible
+	for child in main_screen.get_children():
+		if child is Control and child.visible:
+			return child.name
+	
+	return "unknown"
+
+
+## Get editor viewport info (for 2D/3D editors).
+## [br][br]
+## [param params]:
+## - 'viewport' (String, default "2d"): "2d" or "3d".
+func cmd_get_editor_viewport_info(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var viewport_type: String = params.get("viewport", "2d")
+	
+	var info: Dictionary = {
+		"viewport_type": viewport_type
+	}
+	
+	if viewport_type == "2d":
+		# 2D viewport info
+		info["transform"] = {
+			"note": "2D editor viewport transform not directly accessible"
+		}
+	elif viewport_type == "3d":
+		# 3D viewport info
+		info["camera"] = {
+			"note": "3D editor camera info not directly accessible without 3D editor plugin"
+		}
+	
+	return _success(cmd_id, info)

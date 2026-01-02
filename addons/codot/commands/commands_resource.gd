@@ -190,6 +190,262 @@ func cmd_stop_animation(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	})
 
 
+## Create a new animation in an AnimationPlayer.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): AnimationPlayer node path.
+## - 'name' (String, required): Name for the new animation.
+## - 'length' (float, default 1.0): Animation length in seconds.
+## - 'loop_mode' (int, default 0): 0=none, 1=linear, 2=pingpong.
+## - 'step' (float, default 0.1): Animation step/keyframe interval.
+func cmd_create_animation(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	var anim_name: String = params.get("name", "")
+	var length: float = params.get("length", 1.0)
+	var loop_mode: int = params.get("loop_mode", 0)
+	var step: float = params.get("step", 0.1)
+	
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	if anim_name.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'name' parameter")
+	
+	var root = _get_scene_root()
+	var node = root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	if not node is AnimationPlayer:
+		return _error(cmd_id, "INVALID_NODE", "Node is not an AnimationPlayer")
+	
+	var anim_player: AnimationPlayer = node
+	
+	if anim_player.has_animation(anim_name):
+		return _error(cmd_id, "ANIMATION_EXISTS", "Animation already exists: " + anim_name)
+	
+	# Create the animation
+	var animation := Animation.new()
+	animation.length = length
+	animation.loop_mode = loop_mode
+	animation.step = step
+	
+	# Add to animation library
+	var library: AnimationLibrary = null
+	if anim_player.has_animation_library(""):
+		library = anim_player.get_animation_library("")
+	else:
+		library = AnimationLibrary.new()
+		anim_player.add_animation_library("", library)
+	
+	library.add_animation(anim_name, animation)
+	
+	return _success(cmd_id, {
+		"created": true,
+		"path": node_path,
+		"name": anim_name,
+		"length": length,
+		"loop_mode": loop_mode
+	})
+
+
+## Add a track to an animation.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): AnimationPlayer node path.
+## - 'animation' (String, required): Animation name.
+## - 'track_type' (String, required): "value", "position_3d", "rotation_3d", "scale_3d", "method", "bezier".
+## - 'track_path' (String, required): Node path and property (e.g., "Sprite2D:modulate").
+func cmd_add_animation_track(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	var anim_name: String = params.get("animation", "")
+	var track_type: String = params.get("track_type", "value")
+	var track_path: String = params.get("track_path", "")
+	
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	if anim_name.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'animation' parameter")
+	if track_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'track_path' parameter")
+	
+	var root = _get_scene_root()
+	var node = root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	if not node is AnimationPlayer:
+		return _error(cmd_id, "INVALID_NODE", "Node is not an AnimationPlayer")
+	
+	var anim_player: AnimationPlayer = node
+	
+	if not anim_player.has_animation(anim_name):
+		return _error(cmd_id, "ANIMATION_NOT_FOUND", "Animation not found: " + anim_name)
+	
+	var animation: Animation = anim_player.get_animation(anim_name)
+	
+	# Map track type string to enum
+	var type_map := {
+		"value": Animation.TYPE_VALUE,
+		"position_3d": Animation.TYPE_POSITION_3D,
+		"rotation_3d": Animation.TYPE_ROTATION_3D,
+		"scale_3d": Animation.TYPE_SCALE_3D,
+		"blend_shape": Animation.TYPE_BLEND_SHAPE,
+		"method": Animation.TYPE_METHOD,
+		"bezier": Animation.TYPE_BEZIER,
+		"audio": Animation.TYPE_AUDIO,
+		"animation": Animation.TYPE_ANIMATION
+	}
+	
+	if not type_map.has(track_type):
+		return _error(cmd_id, "INVALID_TRACK_TYPE", 
+			"Invalid track type: %s. Valid types: %s" % [track_type, ", ".join(type_map.keys())])
+	
+	var track_idx := animation.add_track(type_map[track_type])
+	animation.track_set_path(track_idx, NodePath(track_path))
+	
+	return _success(cmd_id, {
+		"added": true,
+		"path": node_path,
+		"animation": anim_name,
+		"track_index": track_idx,
+		"track_type": track_type,
+		"track_path": track_path
+	})
+
+
+## Add a keyframe to an animation track.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): AnimationPlayer node path.
+## - 'animation' (String, required): Animation name.
+## - 'track_index' (int, required): Track index to add keyframe to.
+## - 'time' (float, required): Time in seconds for the keyframe.
+## - 'value' (Variant, required): Value for the keyframe.
+## - 'transition' (float, default 1.0): Transition type (-1 to 1).
+func cmd_add_animation_keyframe(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	var anim_name: String = params.get("animation", "")
+	var track_index: int = params.get("track_index", -1)
+	var time: float = params.get("time", 0.0)
+	var value = params.get("value")
+	var transition: float = params.get("transition", 1.0)
+	
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	if anim_name.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'animation' parameter")
+	if track_index < 0:
+		return _error(cmd_id, "MISSING_PARAM", "Missing or invalid 'track_index' parameter")
+	if value == null:
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'value' parameter")
+	
+	var root = _get_scene_root()
+	var node = root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	if not node is AnimationPlayer:
+		return _error(cmd_id, "INVALID_NODE", "Node is not an AnimationPlayer")
+	
+	var anim_player: AnimationPlayer = node
+	
+	if not anim_player.has_animation(anim_name):
+		return _error(cmd_id, "ANIMATION_NOT_FOUND", "Animation not found: " + anim_name)
+	
+	var animation: Animation = anim_player.get_animation(anim_name)
+	
+	if track_index >= animation.get_track_count():
+		return _error(cmd_id, "INVALID_TRACK", "Track index out of range: %d" % track_index)
+	
+	# Convert value if it's a dictionary representing a type
+	var converted_value = _convert_animation_value(value)
+	
+	var key_idx := animation.track_insert_key(track_index, time, converted_value, transition)
+	
+	return _success(cmd_id, {
+		"added": true,
+		"path": node_path,
+		"animation": anim_name,
+		"track_index": track_index,
+		"key_index": key_idx,
+		"time": time
+	})
+
+
+## Helper: Convert animation value from JSON-friendly format.
+func _convert_animation_value(value: Variant) -> Variant:
+	if value is Dictionary:
+		if value.has("_type"):
+			match value["_type"]:
+				"Vector2":
+					return Vector2(value.get("x", 0), value.get("y", 0))
+				"Vector3":
+					return Vector3(value.get("x", 0), value.get("y", 0), value.get("z", 0))
+				"Color":
+					return Color(value.get("r", 1), value.get("g", 1), value.get("b", 1), value.get("a", 1))
+	return value
+
+
+## Preview an animation (play in editor).
+## [br][br]
+## [param params]:
+## - 'path' (String, required): AnimationPlayer node path.
+## - 'animation' (String, required): Animation name to preview.
+## - 'seek' (float, optional): Seek to specific time.
+func cmd_preview_animation(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	var anim_name: String = params.get("animation", "")
+	var seek_time: float = params.get("seek", -1.0)
+	
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	if anim_name.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'animation' parameter")
+	
+	var root = _get_scene_root()
+	var node = root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	if not node is AnimationPlayer:
+		return _error(cmd_id, "INVALID_NODE", "Node is not an AnimationPlayer")
+	
+	var anim_player: AnimationPlayer = node
+	
+	if not anim_player.has_animation(anim_name):
+		return _error(cmd_id, "ANIMATION_NOT_FOUND", "Animation not found: " + anim_name)
+	
+	# Play the animation
+	anim_player.play(anim_name)
+	
+	# Seek if requested
+	if seek_time >= 0:
+		anim_player.seek(seek_time, true)
+	
+	return _success(cmd_id, {
+		"previewing": true,
+		"path": node_path,
+		"animation": anim_name,
+		"seeked_to": seek_time if seek_time >= 0 else 0.0
+	})
+
+
 # =============================================================================
 # Audio Operations
 # =============================================================================
@@ -451,6 +707,239 @@ func cmd_list_resource_types(cmd_id: Variant, _params: Dictionary) -> Dictionary
 		"types": resource_types,
 		"count": resource_types.size()
 	})
+
+
+# =============================================================================
+# Asset Management
+# =============================================================================
+
+## Get import settings for a resource.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Path to the resource file.
+func cmd_get_import_settings(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var path: String = params.get("path", "")
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	var import_path := path + ".import"
+	if not FileAccess.file_exists(import_path):
+		return _success(cmd_id, {
+			"path": path,
+			"has_import_file": false,
+			"settings": {},
+			"note": "Resource does not have an import file (may not be imported)"
+		})
+	
+	var file := FileAccess.open(import_path, FileAccess.READ)
+	if file == null:
+		return _error(cmd_id, "FILE_ERROR", "Could not open import file")
+	
+	var content := file.get_as_text()
+	file.close()
+	
+	# Parse the import file (ConfigFile format)
+	var config := ConfigFile.new()
+	var err := config.load(import_path)
+	if err != OK:
+		return _error(cmd_id, "PARSE_ERROR", "Could not parse import file")
+	
+	var settings: Dictionary = {}
+	var sections: PackedStringArray = config.get_sections()
+	
+	for section in sections:
+		var section_dict: Dictionary = {}
+		for key in config.get_section_keys(section):
+			section_dict[key] = config.get_value(section, key)
+		settings[section] = section_dict
+	
+	return _success(cmd_id, {
+		"path": path,
+		"has_import_file": true,
+		"import_path": import_path,
+		"settings": settings
+	})
+
+
+## Set import settings for a resource.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Path to the resource file.
+## - 'settings' (Dictionary, required): Settings to apply (section -> key -> value).
+## - 'reimport' (bool, default true): Whether to reimport after setting.
+func cmd_set_import_settings(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var path: String = params.get("path", "")
+	var settings: Dictionary = params.get("settings", {})
+	var reimport: bool = params.get("reimport", true)
+	
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	if settings.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'settings' parameter")
+	
+	var import_path := path + ".import"
+	if not FileAccess.file_exists(import_path):
+		return _error(cmd_id, "NO_IMPORT_FILE", 
+			"Resource does not have an import file: " + path)
+	
+	var config := ConfigFile.new()
+	var err := config.load(import_path)
+	if err != OK:
+		return _error(cmd_id, "PARSE_ERROR", "Could not parse import file")
+	
+	var changed: Array = []
+	
+	for section in settings:
+		for key in settings[section]:
+			var old_value = config.get_value(section, key, null)
+			var new_value = settings[section][key]
+			config.set_value(section, key, new_value)
+			changed.append({
+				"section": section,
+				"key": key,
+				"old_value": str(old_value),
+				"new_value": str(new_value)
+			})
+	
+	err = config.save(import_path)
+	if err != OK:
+		return _error(cmd_id, "SAVE_ERROR", "Could not save import file")
+	
+	# Reimport if requested
+	if reimport:
+		editor_interface.get_resource_filesystem().reimport_files([path])
+	
+	return _success(cmd_id, {
+		"path": path,
+		"import_path": import_path,
+		"changes": changed,
+		"reimported": reimport
+	})
+
+
+## Get all resources that depend on a given resource.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Path to the resource.
+## - 'recursive' (bool, default false): Search recursively for transitive dependencies.
+func cmd_get_resource_dependencies(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var path: String = params.get("path", "")
+	var recursive: bool = params.get("recursive", false)
+	
+	if path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	if not FileAccess.file_exists(path):
+		return _error(cmd_id, "FILE_NOT_FOUND", "Resource not found: " + path)
+	
+	# Get what this resource depends on
+	var dependencies: PackedStringArray = ResourceLoader.get_dependencies(path)
+	var depends_on: Array = []
+	for dep in dependencies:
+		# Dependencies format: "path::type"
+		var parts := dep.split("::")
+		depends_on.append({
+			"path": parts[0] if parts.size() > 0 else dep,
+			"type": parts[1] if parts.size() > 1 else "unknown"
+		})
+	
+	# Find what depends on this resource (reverse lookup)
+	var dependents: Array = []
+	var fs := editor_interface.get_resource_filesystem()
+	var root_dir := fs.get_filesystem()
+	_find_dependents(root_dir, path, dependents, recursive, {})
+	
+	return _success(cmd_id, {
+		"path": path,
+		"depends_on": depends_on,
+		"depends_on_count": depends_on.size(),
+		"dependents": dependents,
+		"dependents_count": dependents.size()
+	})
+
+
+## Helper: Recursively find files that depend on a resource.
+func _find_dependents(dir: EditorFileSystemDirectory, target_path: String, 
+					  dependents: Array, recursive: bool, checked: Dictionary) -> void:
+	for i in range(dir.get_file_count()):
+		var file_path := dir.get_file_path(i)
+		if checked.has(file_path):
+			continue
+		checked[file_path] = true
+		
+		var deps := ResourceLoader.get_dependencies(file_path)
+		for dep in deps:
+			var dep_path: String = dep.split("::")[0] if "::" in dep else dep
+			if dep_path == target_path:
+				dependents.append({
+					"path": file_path,
+					"type": dir.get_file_type(i)
+				})
+				break
+	
+	for i in range(dir.get_subdir_count()):
+		_find_dependents(dir.get_subdir(i), target_path, dependents, recursive, checked)
+
+
+## Find broken resource references in the project.
+## [br][br]
+## [param params]:
+## - 'directory' (String, default "res://"): Directory to scan.
+## - 'extensions' (Array, optional): File extensions to check.
+func cmd_find_broken_references(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var directory: String = params.get("directory", "res://")
+	var extensions: Array = params.get("extensions", ["tscn", "tres", "gd"])
+	
+	var broken_refs: Array = []
+	var files_checked := 0
+	
+	var fs := editor_interface.get_resource_filesystem()
+	var root_dir := fs.get_filesystem()
+	
+	_scan_for_broken_refs(root_dir, extensions, broken_refs, files_checked)
+	
+	return _success(cmd_id, {
+		"directory": directory,
+		"broken_references": broken_refs,
+		"broken_count": broken_refs.size(),
+		"files_checked": files_checked
+	})
+
+
+## Helper: Scan directory for broken references.
+func _scan_for_broken_refs(dir: EditorFileSystemDirectory, extensions: Array,
+						   broken_refs: Array, files_checked: int) -> int:
+	for i in range(dir.get_file_count()):
+		var file_path := dir.get_file_path(i)
+		var ext := file_path.get_extension()
+		
+		if ext in extensions:
+			files_checked += 1
+			var deps := ResourceLoader.get_dependencies(file_path)
+			for dep in deps:
+				var dep_path: String = dep.split("::")[0] if "::" in dep else dep
+				if not dep_path.is_empty() and not FileAccess.file_exists(dep_path):
+					broken_refs.append({
+						"file": file_path,
+						"missing_dependency": dep_path
+					})
+	
+	for i in range(dir.get_subdir_count()):
+		files_checked = _scan_for_broken_refs(dir.get_subdir(i), extensions, broken_refs, files_checked)
+	
+	return files_checked
 
 
 # =============================================================================

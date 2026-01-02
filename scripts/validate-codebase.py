@@ -305,6 +305,13 @@ class CodebaseValidator:
                     if not re.search(r'params\.get\([^,]+,\s*[^)]+\)', line):
                         self.add_violation(file_path, line_num, "MISSING_DEFAULT",
                             "params.get() without default value may return null", severity="info")
+            
+            # Rule 12: get_node_or_null with non-NodePath argument
+            # Common mistake: using child.name (StringName) instead of NodePath(child.name)
+            node_lookup_match = re.search(r'get_node(?:_or_null)?\(\s*(\w+)\.name\s*\)', line)
+            if node_lookup_match:
+                self.add_violation(file_path, line_num, "NODEPATH_TYPE",
+                    "get_node/get_node_or_null expects NodePath, not StringName. Use NodePath(child.name)", severity="warning")
         
         # Rule 11: Check for duplicate function definitions
         func_definitions: dict[str, int] = {}

@@ -62,6 +62,7 @@ var _plugin: Object = null
 var _batch: Object = null
 var _input_map: Object = null
 var _autoload: Object = null
+var _events: Object = null
 
 
 func _ready() -> void:
@@ -88,6 +89,7 @@ func _load_command_modules() -> void:
 	_batch = _load_module(base_path + "commands_batch.gd")
 	_input_map = _load_module(base_path + "commands_input_map.gd")
 	_autoload = _load_module(base_path + "commands_autoload.gd")
+	_events = _load_module(base_path + "commands_events.gd")
 	
 	# Set command handler reference for batch commands
 	if _batch != null and _batch.has_method("set_command_handler"):
@@ -115,7 +117,7 @@ func _load_module(path: String) -> Object:
 func _update_all_modules() -> void:
 	var modules := [_status, _scene_tree, _file, _scene, _editor, _script, 
 					_node, _input, _gut, _advanced, _resource, _debug, _plugin, _batch,
-					_input_map, _autoload]
+					_input_map, _autoload, _events]
 	
 	for module in modules:
 		if module != null and module.has_method("setup"):
@@ -242,6 +244,8 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _scene.cmd_reload_current_scene(cmd_id, params)
 		"close_scene":
 			return _scene.cmd_close_scene(cmd_id, params)
+		"get_scene_diff":
+			return _scene.cmd_get_scene_diff(cmd_id, params)
 		
 		# =================================================================
 		# Editor Operations (commands_editor.gd)
@@ -286,6 +290,12 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _editor.cmd_get_undo_redo_status(cmd_id, params)
 		"get_recent_files":
 			return _editor.cmd_get_recent_files(cmd_id, params)
+		"get_editor_theme":
+			return _editor.cmd_get_editor_theme(cmd_id, params)
+		"get_editor_layout":
+			return _editor.cmd_get_editor_layout(cmd_id, params)
+		"get_editor_viewport_info":
+			return _editor.cmd_get_editor_viewport_info(cmd_id, params)
 		
 		# =================================================================
 		# Script Operations (commands_script.gd)
@@ -390,6 +400,14 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _resource.cmd_play_animation(cmd_id, params)
 		"stop_animation":
 			return _resource.cmd_stop_animation(cmd_id, params)
+		"create_animation":
+			return _resource.cmd_create_animation(cmd_id, params)
+		"add_animation_track":
+			return _resource.cmd_add_animation_track(cmd_id, params)
+		"add_animation_keyframe":
+			return _resource.cmd_add_animation_keyframe(cmd_id, params)
+		"preview_animation":
+			return _resource.cmd_preview_animation(cmd_id, params)
 		"list_audio_buses":
 			return _resource.cmd_list_audio_buses(cmd_id, params)
 		"set_audio_bus_volume":
@@ -406,6 +424,14 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _resource.cmd_set_resource_properties(cmd_id, params)
 		"list_resource_types":
 			return _resource.cmd_list_resource_types(cmd_id, params)
+		"get_import_settings":
+			return _resource.cmd_get_import_settings(cmd_id, params)
+		"set_import_settings":
+			return _resource.cmd_set_import_settings(cmd_id, params)
+		"get_resource_dependencies":
+			return _resource.cmd_get_resource_dependencies(cmd_id, params)
+		"find_broken_references":
+			return _resource.cmd_find_broken_references(cmd_id, params)
 		
 		# =================================================================
 		# Debug & Performance (commands_debug.gd)
@@ -432,6 +458,14 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return await _debug.cmd_gut_run_and_wait(cmd_id, params)
 		"gut_get_summary":
 			return _debug.cmd_gut_get_summary(cmd_id, params)
+		"get_profiler_data":
+			return _debug.cmd_get_profiler_data(cmd_id, params)
+		"get_orphan_nodes":
+			return _debug.cmd_get_orphan_nodes(cmd_id, params)
+		"get_object_stats":
+			return _debug.cmd_get_object_stats(cmd_id, params)
+		"get_stack_info":
+			return _debug.cmd_get_stack_info(cmd_id, params)
 		
 		# =================================================================
 		# Plugin Management (commands_plugin.gd)
@@ -496,6 +530,24 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _autoload.cmd_set_autoload_path(cmd_id, params)
 		"reorder_autoloads":
 			return _autoload.cmd_reorder_autoloads(cmd_id, params)
+		
+		# =================================================================
+		# Event Subscription System (commands_events.gd)
+		# =================================================================
+		"list_event_types":
+			return _events.cmd_list_event_types(cmd_id, params)
+		"subscribe":
+			return _events.cmd_subscribe(cmd_id, params)
+		"unsubscribe":
+			return _events.cmd_unsubscribe(cmd_id, params)
+		"get_subscriptions":
+			return _events.cmd_get_subscriptions(cmd_id, params)
+		"poll_events":
+			return _events.cmd_poll_events(cmd_id, params)
+		"unsubscribe_all":
+			return _events.cmd_unsubscribe_all(cmd_id, params)
+		"get_subscription_stats":
+			return _events.cmd_get_subscription_stats(cmd_id, params)
 		
 		# =================================================================
 		# Unknown Command

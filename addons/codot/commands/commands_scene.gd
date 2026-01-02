@@ -410,3 +410,202 @@ func cmd_close_scene(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		"path": scene_path,
 		"saved": save
 	})
+
+
+## Compare current scene state to the saved version on disk.
+## [br][br]
+## [param params]:
+## - 'path' (String, optional): Scene path to compare. Uses current scene if empty.
+## - 'include_properties' (bool, default true): Include property changes.
+func cmd_get_scene_diff(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_editor(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var path: String = params.get("path", "")
+	var include_properties: bool = params.get("include_properties", true)
+	
+	var root = editor_interface.get_edited_scene_root()
+	if root == null:
+		return _error(cmd_id, "NO_SCENE", "No scene is currently open")
+	
+	var scene_path: String = path if not path.is_empty() else root.scene_file_path
+	
+	if scene_path.is_empty():
+		return _success(cmd_id, {
+			"has_changes": true,
+			"is_new": true,
+			"changes": [],
+			"note": "Scene has never been saved"
+		})
+	
+	if not FileAccess.file_exists(scene_path):
+		return _success(cmd_id, {
+			"has_changes": true,
+			"is_new": true,
+			"changes": [],
+			"note": "Scene file does not exist on disk"
+		})
+	
+	# Load the saved version
+	var saved_scene := load(scene_path) as PackedScene
+	if saved_scene == null:
+		return _error(cmd_id, "LOAD_ERROR", "Could not load saved scene: " + scene_path)
+	
+	var saved_root := saved_scene.instantiate()
+	if saved_root == null:
+		return _error(cmd_id, "INSTANTIATE_ERROR", "Could not instantiate saved scene")
+	
+	var changes: Array = []
+	
+	# Compare nodes recursively
+	_compare_nodes(root, saved_root, "", changes, include_properties)
+	
+	# Check for nodes in current that aren't in saved (added)
+	_find_added_nodes(root, saved_root, "", changes)
+	
+	# Check for nodes in saved that aren't in current (removed)
+	_find_removed_nodes(root, saved_root, "", changes)
+	
+	# Clean up
+	saved_root.queue_free()
+	
+	return _success(cmd_id, {
+		"path": scene_path,
+		"has_changes": changes.size() > 0,
+		"is_new": false,
+		"changes": changes,
+		"change_count": changes.size()
+	})
+
+
+## Helper: Compare two nodes and their properties.
+func _compare_nodes(current: Node, saved: Node, path: String, changes: Array, include_props: bool) -> void:
+	if current == null or saved == null:
+		return
+	
+	var current_path := path + "/" + current.name if not path.is_empty() else current.name
+	
+	# Check if type changed
+	if current.get_class() != saved.get_class():
+		changes.append({
+			"type": "type_changed",
+			"path": current_path,
+			"old_type": saved.get_class(),
+			"new_type": current.get_class()
+		})
+		return
+	
+	# Compare properties if requested
+	if include_props:
+		for prop in current.get_property_list():
+			if prop["usage"] & PROPERTY_USAGE_STORAGE:
+				var prop_name: String = prop["name"]
+				# Skip internal properties
+				if prop_name.begins_with("_") or prop_name in ["script", "owner"]:
+					continue
+				
+				var current_val = current.get(prop_name)
+				var saved_val = saved.get(prop_name)
+				
+				if not _values_equal(current_val, saved_val):
+					changes.append({
+						"type": "property_changed",
+						"path": current_path,
+						"property": prop_name,
+						"old_value": _safe_string(saved_val),
+						"new_value": _safe_string(current_val)
+					})
+	
+	# Compare children with same name
+	for i in range(current.get_child_count()):
+		var current_child := current.get_child(i)
+		var saved_child := saved.get_node_or_null(NodePath(current_child.name))
+		if saved_child != null:
+			_compare_nodes(current_child, saved_child, current_path, changes, include_props)
+
+
+## Helper: Find nodes that were added.
+func _find_added_nodes(current: Node, saved: Node, path: String, changes: Array) -> void:
+	var current_path := path + "/" + current.name if not path.is_empty() else current.name
+	
+	for i in range(current.get_child_count()):
+		var current_child := current.get_child(i)
+		var saved_child := saved.get_node_or_null(NodePath(current_child.name)) if saved else null
+		
+		if saved_child == null:
+			changes.append({
+				"type": "node_added",
+				"path": current_path + "/" + current_child.name,
+				"node_type": current_child.get_class()
+			})
+		else:
+			_find_added_nodes(current_child, saved_child, current_path, changes)
+
+
+## Helper: Find nodes that were removed.
+func _find_removed_nodes(current: Node, saved: Node, path: String, changes: Array) -> void:
+	if saved == null:
+		return
+	
+	var current_path := path + "/" + saved.name if not path.is_empty() else saved.name
+	
+	for i in range(saved.get_child_count()):
+		var saved_child := saved.get_child(i)
+		var current_child := current.get_node_or_null(NodePath(saved_child.name)) if current else null
+		
+		if current_child == null:
+			changes.append({
+				"type": "node_removed",
+				"path": current_path + "/" + saved_child.name,
+				"node_type": saved_child.get_class()
+			})
+		else:
+			_find_removed_nodes(current_child, saved_child, current_path, changes)
+
+
+## Helper: Check if two values are equal.
+func _values_equal(a: Variant, b: Variant) -> bool:
+	if typeof(a) != typeof(b):
+		return false
+	
+	match typeof(a):
+		TYPE_OBJECT:
+			if a is Resource and b is Resource:
+				return a.resource_path == b.resource_path
+			return a == b
+		TYPE_ARRAY:
+			if a.size() != b.size():
+				return false
+			for i in range(a.size()):
+				if not _values_equal(a[i], b[i]):
+					return false
+			return true
+		TYPE_DICTIONARY:
+			if a.size() != b.size():
+				return false
+			for key in a:
+				if not b.has(key) or not _values_equal(a[key], b[key]):
+					return false
+			return true
+		_:
+			return a == b
+
+
+## Helper: Convert value to safe string representation.
+func _safe_string(value: Variant) -> String:
+	match typeof(value):
+		TYPE_OBJECT:
+			if value is Resource:
+				return value.resource_path if value.resource_path else "(embedded)"
+			return value.get_class() if value else "null"
+		TYPE_VECTOR2:
+			return "Vector2(%s, %s)" % [value.x, value.y]
+		TYPE_VECTOR3:
+			return "Vector3(%s, %s, %s)" % [value.x, value.y, value.z]
+		TYPE_COLOR:
+			return "Color(%s, %s, %s, %s)" % [value.r, value.g, value.b, value.a]
+		TYPE_NIL:
+			return "null"
+		_:
+			return str(value)

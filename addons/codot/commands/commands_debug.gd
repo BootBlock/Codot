@@ -523,3 +523,128 @@ func cmd_gut_get_summary(cmd_id: Variant, _params: Dictionary) -> Dictionary:
 	summary["success"] = summary["failed"] == 0 and summary["errors"] == 0
 	
 	return _success(cmd_id, summary)
+
+
+# =============================================================================
+# Profiler & Memory Analysis
+# =============================================================================
+
+## Get profiler data from Performance monitors.
+## [br][br]
+## [param params]:
+## - 'category' (String, optional): Filter by category (time, memory, object, physics, rendering).
+func cmd_get_profiler_data(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var category: String = params.get("category", "")
+	
+	var data: Dictionary = {
+		"time": {
+			"fps": Performance.get_monitor(Performance.TIME_FPS),
+			"process": Performance.get_monitor(Performance.TIME_PROCESS),
+			"physics_process": Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS),
+			"navigation_process": Performance.get_monitor(Performance.TIME_NAVIGATION_PROCESS),
+		},
+		"memory": {
+			"static": Performance.get_monitor(Performance.MEMORY_STATIC),
+			"static_max": Performance.get_monitor(Performance.MEMORY_STATIC_MAX),
+			"message_buffer_max": Performance.get_monitor(Performance.MEMORY_MESSAGE_BUFFER_MAX),
+		},
+		"objects": {
+			"count": Performance.get_monitor(Performance.OBJECT_COUNT),
+			"resource_count": Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT),
+			"node_count": Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+			"orphan_node_count": Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT),
+		},
+		"rendering": {
+			"total_objects": Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+			"total_primitives": Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+			"total_draw_calls": Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			"video_memory_used": Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED),
+		},
+		"physics_2d": {
+			"active_objects": Performance.get_monitor(Performance.PHYSICS_2D_ACTIVE_OBJECTS),
+			"collision_pairs": Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS),
+			"island_count": Performance.get_monitor(Performance.PHYSICS_2D_ISLAND_COUNT),
+		},
+		"physics_3d": {
+			"active_objects": Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS),
+			"collision_pairs": Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS),
+			"island_count": Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT),
+		},
+		"navigation": {
+			"active_maps": Performance.get_monitor(Performance.NAVIGATION_ACTIVE_MAPS),
+			"region_count": Performance.get_monitor(Performance.NAVIGATION_REGION_COUNT),
+			"agent_count": Performance.get_monitor(Performance.NAVIGATION_AGENT_COUNT),
+			"link_count": Performance.get_monitor(Performance.NAVIGATION_LINK_COUNT),
+			"polygon_count": Performance.get_monitor(Performance.NAVIGATION_POLYGON_COUNT),
+			"edge_count": Performance.get_monitor(Performance.NAVIGATION_EDGE_COUNT),
+			"edge_merge_count": Performance.get_monitor(Performance.NAVIGATION_EDGE_MERGE_COUNT),
+			"edge_connection_count": Performance.get_monitor(Performance.NAVIGATION_EDGE_CONNECTION_COUNT),
+			"edge_free_count": Performance.get_monitor(Performance.NAVIGATION_EDGE_FREE_COUNT),
+		},
+	}
+	
+	# Filter by category if specified
+	if not category.is_empty() and data.has(category):
+		return _success(cmd_id, {
+			"category": category,
+			"data": data[category]
+		})
+	
+	return _success(cmd_id, data)
+
+
+## Get orphan nodes (nodes without an owner, potential memory leak).
+## [br][br]
+## Returns the count and attempts to identify orphan nodes.
+func cmd_get_orphan_nodes(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var orphan_count: int = Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)
+	var total_nodes: int = Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
+	
+	return _success(cmd_id, {
+		"orphan_count": orphan_count,
+		"total_nodes": total_nodes,
+		"percentage": (float(orphan_count) / float(max(total_nodes, 1))) * 100.0,
+		"note": "Orphan nodes are nodes without an owner. They may indicate memory leaks.",
+		"recommendation": "Call node.queue_free() to properly clean up nodes."
+	})
+
+
+## Get detailed object statistics.
+func cmd_get_object_stats(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var stats: Dictionary = {
+		"total_objects": Performance.get_monitor(Performance.OBJECT_COUNT),
+		"resources": Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT),
+		"nodes": Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+		"orphan_nodes": Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT),
+	}
+	
+	# Calculate derived stats
+	var non_node_objects: int = stats["total_objects"] - stats["nodes"] - stats["resources"]
+	stats["other_objects"] = max(0, non_node_objects)
+	
+	# Memory efficiency estimate
+	var static_memory: float = Performance.get_monitor(Performance.MEMORY_STATIC)
+	if stats["total_objects"] > 0:
+		stats["avg_bytes_per_object"] = static_memory / stats["total_objects"]
+	else:
+		stats["avg_bytes_per_object"] = 0
+	
+	return _success(cmd_id, stats)
+
+
+## Print a stack trace for debugging.
+func cmd_get_stack_info(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	var stack: Array = get_stack()
+	var stack_info: Array = []
+	
+	for frame in stack:
+		stack_info.append({
+			"function": frame.get("function", "unknown"),
+			"source": frame.get("source", "unknown"),
+			"line": frame.get("line", 0)
+		})
+	
+	return _success(cmd_id, {
+		"stack": stack_info,
+		"depth": stack_info.size()
+	})
