@@ -39,7 +39,7 @@
 
 ```
 ┌─────────────────┐     MCP Protocol      ┌──────────────────┐     WebSocket      ┌─────────────────┐
-│   AI Agent      │ ◄──────────────────► │   MCP Server     │ ◄────────────────► │  Godot Editor   │
+│   AI Agent      │ ◄───────────────────► │   MCP Server     │ ◄────────────────► │  Godot Editor   │
 │ (Claude, etc.)  │    (stdio/JSON-RPC)   │   (Python)       │    (port 6850)     │  (GDScript)     │
 └─────────────────┘                       └──────────────────┘                    └─────────────────┘
 ```
