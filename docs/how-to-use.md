@@ -271,6 +271,7 @@ Here's a typical AI-assisted workflow:
 |----------|---------|-------------|
 | `CODOT_HOST` | `127.0.0.1` | WebSocket server host |
 | `CODOT_PORT` | `6850` | WebSocket server port |
+| `CODOT_ENABLE_ALL_TOOLS` | `false` | Set to `1` to enable all 160+ tools (by default, ~95 tools are enabled to stay under VS Code's 128 tool limit) |
 
 ### Changing the Port
 

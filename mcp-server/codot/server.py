@@ -31,7 +31,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 from .godot_client import GodotClient
-from .commands import COMMANDS, CommandDefinition
+from .commands import COMMANDS, CommandDefinition, DISABLED_COMMANDS
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +43,10 @@ logger = logging.getLogger("codot")
 # Default configuration
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 6850
+
+# Environment variable to enable ALL tools (ignores DISABLED_COMMANDS)
+# Set CODOT_ENABLE_ALL_TOOLS=1 to expose all 160+ commands
+ENABLE_ALL_TOOLS = os.environ.get("CODOT_ENABLE_ALL_TOOLS", "").lower() in ("1", "true", "yes")
 
 
 class CodotServer:
@@ -139,8 +143,15 @@ class CodotServer:
                 },
             ))
             
-            # Add all command-based tools
+            # Add all command-based tools (skip disabled ones unless CODOT_ENABLE_ALL_TOOLS is set)
             for cmd_name, cmd_def in COMMANDS.items():
+                # Skip commands that are explicitly disabled (unless override is set)
+                if not ENABLE_ALL_TOOLS and cmd_name in DISABLED_COMMANDS:
+                    continue
+                # Also check the enabled flag on the command itself
+                if not cmd_def.enabled:
+                    continue
+                    
                 tools.append(Tool(
                     name=f"godot_{cmd_name}",
                     description=cmd_def.description,

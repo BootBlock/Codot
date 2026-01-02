@@ -52,6 +52,8 @@ class CommandDefinition:
                      'properties', and 'required' fields.
         godot_command: Optional alternate command name to send to Godot.
                       If empty, the dictionary key is used as the command.
+        enabled: Whether this command is exposed as an MCP tool.
+                 Set to False to hide rarely-used commands.
                       
     Example:
         CommandDefinition(
@@ -70,6 +72,115 @@ class CommandDefinition:
     description: str
     input_schema: dict[str, Any] = field(default_factory=dict)
     godot_command: str = ""  # If different from the key
+    enabled: bool = True  # Whether to expose this command as an MCP tool
+
+
+# Commands that are disabled by default to reduce tool count.
+# These are still available in the COMMANDS dict but not exposed as MCP tools.
+# To enable them, set enabled=True on the individual command or modify this set.
+DISABLED_COMMANDS: set[str] = {
+    # Animation tools - rarely needed for automation/testing
+    "list_animations",
+    "play_animation",
+    "stop_animation",
+    "create_animation",
+    "add_animation_track",
+    "add_animation_keyframe",
+    "preview_animation",
+    
+    # Audio tools - rarely needed for automation/testing  
+    "list_audio_buses",
+    "set_audio_bus_volume",
+    "set_audio_bus_mute",
+    
+    # Advanced resource tools
+    "load_resource",
+    "get_resource_info",
+    "save_resource",
+    "duplicate_resource",
+    "set_resource_properties",
+    "list_resource_types",
+    "get_import_settings",
+    "set_import_settings",
+    "get_resource_dependencies",
+    
+    # Editor UI/theme tools - not useful for automation
+    "get_editor_theme",
+    "get_editor_layout",
+    "get_editor_viewport_info",
+    
+    # Subscription/event tools - complex, rarely used
+    "list_event_types",
+    "subscribe",
+    "unsubscribe",
+    "get_subscriptions",
+    "poll_events",
+    "unsubscribe_all",
+    "get_subscription_stats",
+    
+    # Advanced debug tools - rarely needed
+    "get_profiler_data",
+    "get_orphan_nodes",
+    "get_object_stats",
+    "get_stack_info",
+    "get_scene_diff",
+    
+    # Breakpoint tools - usually done in editor
+    "get_breakpoints",
+    "set_breakpoint",
+    "clear_breakpoints",
+    
+    # Input action management - rarely needed during automation
+    "add_input_action",
+    "remove_input_action",
+    "add_input_event_key",
+    "add_input_event_mouse",
+    "add_input_event_joypad_button",
+    "add_input_event_joypad_axis",
+    "clear_input_action_events",
+    
+    # Autoload management - rarely changed during automation
+    "get_autoload",
+    "add_autoload",
+    "remove_autoload",
+    "rename_autoload",
+    "set_autoload_path",
+    "reorder_autoloads",
+    
+    # Advanced node operations
+    "list_node_signals",
+    "emit_signal",
+    "list_node_methods",
+    "get_nodes_in_group",
+    "add_node_to_group",
+    "remove_node_from_group",
+    "make_node_local",
+    "get_node_hierarchy_info",
+    
+    # Batch/bulk operations - complex, can use individual commands
+    "batch_commands",
+    "bulk_set_properties",
+    "create_complete_scene",
+    "create_scene_with_script",
+    
+    # Less commonly used file operations
+    "find_file",
+    "find_resources_by_type",
+    "search_in_files",
+    "find_nodes_by_script",
+    "find_broken_references",
+    
+    # Editor state tools - rarely needed
+    "get_editor_settings",
+    "get_unsaved_changes",
+    "get_recent_files",
+    "mark_modified",
+    
+    # Plugin management - rarely needed during automation
+    "enable_plugin",
+    "disable_plugin",
+    "reload_project",
+}
 
 
 # Command definitions - these match the implemented commands in command_handler.gd
