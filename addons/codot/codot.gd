@@ -3,8 +3,8 @@
 ## Provides a WebSocket-based bridge for AI agents to control the Godot editor.
 extends EditorPlugin
 
-const CodotSettingsClass = preload("res://addons/codot/codot_settings.gd")
-const DebuggerPluginClass = preload("res://addons/codot/debugger_plugin.gd")
+const CodotSettingsRef = preload("res://addons/codot/codot_settings.gd")
+const DebuggerPluginRef = preload("res://addons/codot/debugger_plugin.gd")
 
 var _server: Node
 var _handler: Node
@@ -25,7 +25,7 @@ func _enter_tree() -> void:
 	_log("Initializing Codot plugin...")
 	
 	# Initialize the debugger plugin for capturing game output
-	_debugger_plugin = DebuggerPluginClass.new()
+	_debugger_plugin = DebuggerPluginRef.new()
 	add_debugger_plugin(_debugger_plugin)
 	_log("Debugger plugin registered")
 	
@@ -45,7 +45,7 @@ func _enter_tree() -> void:
 	_server.command_received.connect(_on_command_received)
 	
 	# Start the server
-	var port: int = CodotSettingsClass.get_setting("websocket_port", 6850)
+	var port: int = CodotSettingsRef.get_setting("websocket_port", 6850)
 	_server.start(port)
 	_log("WebSocket server started on port %d" % port)
 	
@@ -108,10 +108,11 @@ func _add_dock_panel() -> void:
 ## Handles settings button click from the panel.
 func _on_settings_requested() -> void:
 	_log("Opening Codot settings...")
-	# Open Editor Settings and try to focus on Codot section
-	EditorInterface.get_command_palette().open_command_palette()
-	# The user can type "Codot" to find the settings
-	# Unfortunately there's no direct API to navigate to a specific settings section
+	# Open Command Palette - user can type "Codot" to find the settings
+	# EditorCommandPalette inherits from Window, so use popup_centered()
+	var palette := EditorInterface.get_command_palette()
+	if palette:
+		palette.popup_centered(Vector2i(600, 400))
 
 
 ## Handles Send to AI button click from the panel.
@@ -119,7 +120,7 @@ func _on_send_to_ai_requested(prompt_title: String, prompt_body: String) -> void
 	_log("Sending prompt to AI: %s" % prompt_title)
 	
 	# Check if VS Code extension WebSocket server is running
-	var vscode_port: int = CodotSettingsClass.get_setting("vscode_port", 6851)
+	var vscode_port: int = CodotSettingsRef.get_setting("vscode_port", 6851)
 	
 	# Create a WebSocket client to send the prompt
 	var ws := WebSocketPeer.new()
@@ -183,7 +184,7 @@ func _on_settings_changed() -> void:
 	
 	# Update WebSocket port if changed (would require restart though)
 	# For now, just log that settings changed
-	if CodotSettingsClass.is_feature_enabled("debug_logging"):
+	if CodotSettingsRef.is_feature_enabled("debug_logging"):
 		print("[Codot] Settings updated")
 
 
@@ -216,7 +217,7 @@ func _update_dock_status() -> void:
 	if _dock.has_method("update_connection_status"):
 		var connected: bool = _server.get_client_count() > 0 if _server else false
 		var client_count: int = _server.get_client_count() if _server else 0
-		var port: int = CodotSettingsClass.get_setting("websocket_port", 6850)
+		var port: int = CodotSettingsRef.get_setting("websocket_port", 6850)
 		_dock.update_connection_status(connected, client_count, port)
 
 
@@ -235,5 +236,5 @@ func get_debugger_plugin() -> EditorDebuggerPlugin:
 
 ## Logs a message if debug logging is enabled.
 func _log(message: String) -> void:
-	if CodotSettingsClass.is_feature_enabled("debug_logging"):
+	if CodotSettingsRef.is_feature_enabled("debug_logging"):
 		print("[Codot] %s" % message)

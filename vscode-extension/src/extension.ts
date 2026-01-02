@@ -164,22 +164,30 @@ async function handleMessage(ws: WebSocket, message: any) {
 }
 
 async function handlePrompt(ws: WebSocket, message: any) {
-    const prompt: string = message.prompt || '';
-    const context = message.context || {};
+    // Support both old 'prompt' field and new 'content' field with 'title'
+    const title: string = message.title || '';
+    const content: string = message.content || message.prompt || message.body || '';
+    const promptId: string = message.prompt_id || '';
 
-    if (!prompt) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Empty prompt' }));
+    if (!content) {
+        ws.send(JSON.stringify({ type: 'error', success: false, message: 'Empty prompt content' }));
         return;
     }
 
-    console.log(`Received prompt from Godot: ${prompt.substring(0, 100)}...`);
+    console.log(`Received prompt from Godot: "${title}" - ${content.substring(0, 100)}...`);
 
     // Build a context-aware prompt
-    let fullPrompt = prompt;
+    let fullPrompt = content;
+    
+    // Prepend title if provided
+    if (title) {
+        fullPrompt = `# ${title}\n\n${content}`;
+    }
 
     // Add context about current scene if available
+    const context = message.context || {};
     if (context.current_scene) {
-        fullPrompt = `[Context: Working in Godot project, current scene: ${context.current_scene}]\n\n${prompt}`;
+        fullPrompt = `[Context: Working in Godot project, current scene: ${context.current_scene}]\n\n${fullPrompt}`;
     }
 
     // Add selected nodes context
@@ -205,9 +213,11 @@ async function handlePrompt(ws: WebSocket, message: any) {
             });
 
             ws.send(JSON.stringify({ 
-                type: 'ack', 
+                type: 'ack',
+                success: true,
                 message: 'Prompt sent to Copilot Chat',
-                prompt: prompt.substring(0, 100)
+                prompt_id: promptId,
+                title: title.substring(0, 100)
             }));
 
         } else {
@@ -225,17 +235,21 @@ async function handlePrompt(ws: WebSocket, message: any) {
             });
 
             ws.send(JSON.stringify({ 
-                type: 'ack', 
+                type: 'ack',
+                success: true,
                 message: 'Prompt shown in VS Code (Copilot not available)',
-                prompt: prompt.substring(0, 100)
+                prompt_id: promptId,
+                title: title.substring(0, 100)
             }));
         }
 
     } catch (err) {
         console.error('Error handling prompt:', err);
         ws.send(JSON.stringify({ 
-            type: 'error', 
-            message: `Error handling prompt: ${err}` 
+            type: 'error',
+            success: false,
+            message: `Error handling prompt: ${err}`,
+            prompt_id: promptId
         }));
     }
 }

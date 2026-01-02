@@ -576,19 +576,68 @@ func send_prompt(prompt_id: String) -> bool:
 	var json_str := JSON.stringify(message)
 	var err := _websocket.send_text(json_str)
 	
-	if err == OK:
-		prompt_sent.emit(prompt)
-		_show_auto_save_status("Sent!", Color(0.2, 0.8, 0.2))
-		
-		# Auto-archive if setting enabled
-		if _get_setting("auto_archive_on_send", true):
-			_archive_prompt(prompt_id)
-		return true
-	else:
+	if err != OK:
 		var error_msg := "Send failed: %s" % error_string(err)
 		push_error("Codot: %s" % error_msg)
 		_show_auto_save_status("Send failed", Color(0.8, 0.2, 0.2))
 		return false
+	
+	_show_auto_save_status("Waiting for confirmation...", Color(0.8, 0.8, 0.2))
+	
+	# Wait for VS Code to acknowledge receipt
+	var ack_timeout := 5.0
+	var ack_elapsed := 0.0
+	var confirmed := false
+	
+	while ack_elapsed < ack_timeout:
+		_websocket.poll()
+		
+		# Check for incoming acknowledgment
+		while _websocket.get_available_packet_count() > 0:
+			var packet := _websocket.get_packet()
+			var response_text := packet.get_string_from_utf8()
+			
+			var json := JSON.new()
+			if json.parse(response_text) == OK:
+				var response = json.get_data()
+				if response is Dictionary:
+					if response.get("type") == "ack" or response.get("success") == true:
+						confirmed = true
+						break
+					elif response.get("type") == "error" or response.get("success") == false:
+						var error_msg: String = response.get("error", "Unknown error from VS Code")
+						push_error("Codot: VS Code rejected prompt: %s" % error_msg)
+						_show_auto_save_status("Rejected: %s" % error_msg, Color(0.8, 0.2, 0.2))
+						return false
+		
+		if confirmed:
+			break
+		
+		# Check if connection was lost
+		if _websocket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+			push_error("Codot: Connection lost while waiting for acknowledgment")
+			_show_auto_save_status("Connection lost", Color(0.8, 0.2, 0.2))
+			_is_connected = false
+			_update_status(false)
+			return false
+		
+		await get_tree().create_timer(0.1).timeout
+		ack_elapsed += 0.1
+	
+	if not confirmed:
+		push_warning("Codot: No acknowledgment received from VS Code (sent but unconfirmed)")
+		_show_auto_save_status("Sent (unconfirmed)", Color(0.8, 0.6, 0.2))
+		# Don't archive if we didn't get confirmation
+		return false
+	
+	# Confirmed! Now safe to archive
+	prompt_sent.emit(prompt)
+	_show_auto_save_status("Sent ✓", Color(0.2, 0.8, 0.2))
+	
+	# Auto-archive only after confirmation
+	if _get_setting("auto_archive_on_send", true):
+		_archive_prompt(prompt_id)
+	return true
 
 #endregion
 
