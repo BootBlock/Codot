@@ -6,6 +6,11 @@ extends EditorPlugin
 const CodotSettingsRef = preload("res://addons/codot/codot_settings.gd")
 const DebuggerPluginRef = preload("res://addons/codot/debugger_plugin.gd")
 
+## Path to the output capture autoload script
+const OUTPUT_CAPTURE_PATH = "res://addons/codot/output_capture.gd"
+## Name for the output capture autoload
+const OUTPUT_CAPTURE_NAME = "CodotOutputCapture"
+
 var _server: Node
 var _handler: Node
 var _debugger_plugin: EditorDebuggerPlugin
@@ -23,6 +28,9 @@ func _enter_tree() -> void:
 		_editor_settings.settings_changed.connect(_on_settings_changed)
 	
 	_log("Initialising Codot plugin...")
+	
+	# Register the output capture autoload if not already registered
+	_ensure_output_capture_autoload()
 	
 	# Initialize the debugger plugin for capturing game output
 	_debugger_plugin = DebuggerPluginRef.new()
@@ -53,6 +61,42 @@ func _enter_tree() -> void:
 	_add_dock_panel()
 	
 	_log("Codot plugin v%s initialized" % get_plugin_version())
+
+
+## Ensures the output capture autoload is registered.
+## This is required for game-side features like input simulation and output capture.
+func _ensure_output_capture_autoload() -> void:
+	# Check if already registered
+	if ProjectSettings.has_setting("autoload/" + OUTPUT_CAPTURE_NAME):
+		_log("Output capture autoload already registered")
+		return
+	
+	# Register the autoload
+	ProjectSettings.set_setting("autoload/" + OUTPUT_CAPTURE_NAME, "*" + OUTPUT_CAPTURE_PATH)
+	
+	# Set the order to load early
+	var order: int = ProjectSettings.get_order("autoload/" + OUTPUT_CAPTURE_NAME)
+	ProjectSettings.set_order("autoload/" + OUTPUT_CAPTURE_NAME, 0)
+	
+	# Save project settings
+	var error := ProjectSettings.save()
+	if error == OK:
+		_log("Registered output capture autoload: " + OUTPUT_CAPTURE_NAME)
+	else:
+		push_warning("[Codot] Failed to save project settings after adding autoload: " + str(error))
+
+
+## Removes the output capture autoload when plugin is disabled.
+func _remove_output_capture_autoload() -> void:
+	if not ProjectSettings.has_setting("autoload/" + OUTPUT_CAPTURE_NAME):
+		return
+	
+	ProjectSettings.set_setting("autoload/" + OUTPUT_CAPTURE_NAME, null)
+	var error := ProjectSettings.save()
+	if error == OK:
+		_log("Removed output capture autoload: " + OUTPUT_CAPTURE_NAME)
+	else:
+		push_warning("[Codot] Failed to save project settings after removing autoload: " + str(error))
 
 
 ## Cleans up the plugin when disabled.
@@ -87,6 +131,11 @@ func _exit_tree() -> void:
 	if _debugger_plugin:
 		remove_debugger_plugin(_debugger_plugin)
 		_debugger_plugin = null
+	
+	# Note: We intentionally do NOT remove the CodotOutputCapture autoload here.
+	# It's harmless when the plugin is disabled (it just exits early if debugger isn't active),
+	# and keeping it avoids issues when re-enabling the plugin without restarting Godot.
+	# Users can manually remove it from Project Settings → Autoload if desired.
 	
 	_log("Codot plugin shutdown complete")
 

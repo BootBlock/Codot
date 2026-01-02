@@ -469,3 +469,56 @@ func get_diagnostics() -> Dictionary:
 		"max_entries": MAX_ENTRIES,
 		"verbose": VERBOSE,
 	}
+
+
+## Send an input simulation command to the running game.
+## This uses the debugger protocol to cross the process boundary.
+## [br][br]
+## [param input_params]: Dictionary with input event parameters
+## Returns: true if message was sent (game may or may not be running)
+func send_input_to_game(input_params: Dictionary) -> bool:
+	if _active_sessions.is_empty():
+		if VERBOSE:
+			print("[Codot Debug] No active sessions - cannot send input to game")
+		return false
+	
+	# Send to all active debug sessions (usually just one)
+	for session_id in _active_sessions:
+		var session := get_session(session_id)
+		if session:
+			session.send_message("codot:simulate_input", [input_params])
+			if VERBOSE:
+				print("[Codot Debug] Sent input to game session ", session_id, ": ", input_params)
+	
+	return true
+
+
+## Send a ping to the game to check if the output capture is active.
+## [br][br]
+## Returns: true if message was sent
+func ping_game() -> bool:
+	if _active_sessions.is_empty():
+		return false
+	
+	for session_id in _active_sessions:
+		var session := get_session(session_id)
+		if session:
+			session.send_message("codot:ping", [{}])
+	
+	return true
+
+
+## Send a screenshot request to the game.
+## [br][br]
+## [param path]: Path to save the screenshot
+## Returns: true if message was sent
+func request_screenshot(path: String) -> bool:
+	if _active_sessions.is_empty():
+		return false
+	
+	for session_id in _active_sessions:
+		var session := get_session(session_id)
+		if session:
+			session.send_message("codot:screenshot", [{"path": path}])
+	
+	return true

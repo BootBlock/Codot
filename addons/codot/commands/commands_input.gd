@@ -1,6 +1,27 @@
 ## Input Simulation Module
 ## Handles keyboard, mouse, and action input simulation.
+##
+## IMPORTANT: When the game is running, input events are sent to the game
+## process via the debugger protocol. The CodotOutputCapture autoload in the
+## game receives these and calls Input.parse_input_event() in the game context.
 extends "command_base.gd"
+
+
+## Check if we should route input through the debugger (game is running).
+## Returns true if input should go to game process.
+func _should_route_to_game() -> bool:
+	if debugger_plugin == null:
+		return false
+	var diag: Dictionary = debugger_plugin.get_diagnostics()
+	return diag.get("session_count", 0) > 0
+
+
+## Send input to the game via debugger protocol.
+## Returns true if sent successfully.
+func _send_input_to_game(input_params: Dictionary) -> bool:
+	if debugger_plugin == null:
+		return false
+	return debugger_plugin.send_input_to_game(input_params)
 
 
 ## Simulate a keyboard key press or release.
@@ -22,13 +43,34 @@ func cmd_simulate_key(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	if key_const == KEY_NONE:
 		return _error(cmd_id, "INVALID_KEY", "Invalid key name: " + keycode)
 	
+	# Route to game if running, otherwise parse in editor
+	if _should_route_to_game():
+		var input_params := {
+			"type": "key",
+			"keycode": key_const,
+			"pressed": pressed,
+			"echo": echo,
+			"ctrl": params.get("ctrl", false),
+			"shift": params.get("shift", false),
+			"alt": params.get("alt", false),
+			"meta": params.get("meta", false),
+		}
+		var sent := _send_input_to_game(input_params)
+		return _success(cmd_id, {
+			"simulated": true,
+			"routed_to_game": sent,
+			"type": "key",
+			"key": keycode,
+			"pressed": pressed
+		})
+	
+	# Fallback: parse in editor (only works for editor UI, not running game)
 	var event = InputEventKey.new()
 	event.keycode = key_const
 	event.physical_keycode = key_const
 	event.pressed = pressed
 	event.echo = echo
 	
-	# Check for modifiers in params
 	if params.get("shift", false):
 		event.shift_pressed = true
 	if params.get("ctrl", false):
@@ -42,9 +84,11 @@ func cmd_simulate_key(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	
 	return _success(cmd_id, {
 		"simulated": true,
+		"routed_to_game": false,
 		"type": "key",
 		"key": keycode,
-		"pressed": pressed
+		"pressed": pressed,
+		"note": "Game not running - input parsed in editor context"
 	})
 
 
@@ -62,6 +106,27 @@ func cmd_simulate_mouse_button(cmd_id: Variant, params: Dictionary) -> Dictionar
 	var position_y: float = params.get("y", 0.0)
 	var double_click: bool = params.get("double_click", false)
 	
+	# Route to game if running
+	if _should_route_to_game():
+		var input_params := {
+			"type": "mouse_button",
+			"button": button,
+			"pressed": pressed,
+			"x": position_x,
+			"y": position_y,
+			"double_click": double_click,
+		}
+		var sent := _send_input_to_game(input_params)
+		return _success(cmd_id, {
+			"simulated": true,
+			"routed_to_game": sent,
+			"type": "mouse_button",
+			"button": button,
+			"pressed": pressed,
+			"position": {"x": position_x, "y": position_y}
+		})
+	
+	# Fallback: parse in editor
 	var event = InputEventMouseButton.new()
 	event.button_index = button
 	event.pressed = pressed
@@ -73,10 +138,12 @@ func cmd_simulate_mouse_button(cmd_id: Variant, params: Dictionary) -> Dictionar
 	
 	return _success(cmd_id, {
 		"simulated": true,
+		"routed_to_game": false,
 		"type": "mouse_button",
 		"button": button,
 		"pressed": pressed,
-		"position": {"x": position_x, "y": position_y}
+		"position": {"x": position_x, "y": position_y},
+		"note": "Game not running - input parsed in editor context"
 	})
 
 
@@ -92,12 +159,30 @@ func cmd_simulate_mouse_motion(cmd_id: Variant, params: Dictionary) -> Dictionar
 	var relative_x: float = params.get("relative_x", 0.0)
 	var relative_y: float = params.get("relative_y", 0.0)
 	
+	# Route to game if running
+	if _should_route_to_game():
+		var input_params := {
+			"type": "mouse_motion",
+			"x": position_x,
+			"y": position_y,
+			"rel_x": relative_x,
+			"rel_y": relative_y,
+		}
+		var sent := _send_input_to_game(input_params)
+		return _success(cmd_id, {
+			"simulated": true,
+			"routed_to_game": sent,
+			"type": "mouse_motion",
+			"position": {"x": position_x, "y": position_y},
+			"relative": {"x": relative_x, "y": relative_y}
+		})
+	
+	# Fallback: parse in editor
 	var event = InputEventMouseMotion.new()
 	event.position = Vector2(position_x, position_y)
 	event.global_position = Vector2(position_x, position_y)
 	event.relative = Vector2(relative_x, relative_y)
 	
-	# Check for button mask
 	var button_mask: int = params.get("button_mask", 0)
 	event.button_mask = button_mask
 	
@@ -105,9 +190,11 @@ func cmd_simulate_mouse_motion(cmd_id: Variant, params: Dictionary) -> Dictionar
 	
 	return _success(cmd_id, {
 		"simulated": true,
+		"routed_to_game": false,
 		"type": "mouse_motion",
 		"position": {"x": position_x, "y": position_y},
-		"relative": {"x": relative_x, "y": relative_y}
+		"relative": {"x": relative_x, "y": relative_y},
+		"note": "Game not running - input parsed in editor context"
 	})
 
 
@@ -125,9 +212,33 @@ func cmd_simulate_action(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	if action_name.is_empty():
 		return _error(cmd_id, "MISSING_PARAM", "Missing 'action' parameter")
 	
+	# Note: When game is running, we can't check InputMap from the editor
+	# because the game may have different/additional actions loaded at runtime.
+	# We still validate against editor's InputMap as a basic check.
 	if not InputMap.has_action(action_name):
-		return _error(cmd_id, "INVALID_ACTION", "Action not found: " + action_name)
+		# If game is running, send anyway - the game might have the action
+		if not _should_route_to_game():
+			return _error(cmd_id, "INVALID_ACTION", "Action not found: " + action_name)
 	
+	# Route to game if running
+	if _should_route_to_game():
+		var input_params := {
+			"type": "action",
+			"action": action_name,
+			"pressed": pressed,
+			"strength": strength,
+		}
+		var sent := _send_input_to_game(input_params)
+		return _success(cmd_id, {
+			"simulated": true,
+			"routed_to_game": sent,
+			"type": "action",
+			"action": action_name,
+			"pressed": pressed,
+			"strength": strength
+		})
+	
+	# Fallback: parse in editor
 	var event = InputEventAction.new()
 	event.action = action_name
 	event.pressed = pressed
@@ -137,10 +248,12 @@ func cmd_simulate_action(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	
 	return _success(cmd_id, {
 		"simulated": true,
+		"routed_to_game": false,
 		"type": "action",
 		"action": action_name,
 		"pressed": pressed,
-		"strength": strength
+		"strength": strength,
+		"note": "Game not running - input parsed in editor context"
 	})
 
 

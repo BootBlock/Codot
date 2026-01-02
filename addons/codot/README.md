@@ -9,6 +9,11 @@ This is the Godot 4.x plugin component of Codot, which enables AI agents to cont
 2. In Godot, go to **Project → Project Settings → Plugins**
 3. Enable "Codot"
 
+The plugin will automatically register the `CodotOutputCapture` autoload, which is required for:
+- Capturing debug output from running games
+- Input simulation in running games
+- Screenshots from running games
+
 ### Option 2: Symlink (for development)
 ```bash
 # Windows (PowerShell as Admin)
@@ -28,50 +33,55 @@ After enabling the plugin, configure it in **Project → Project Settings**:
 | `codot/network/autostart_server` | `true` | Start server when plugin loads |
 | `codot/debug/verbose_logging` | `false` | Enable debug output |
 
-## Game Connector (Optional)
+## Autoloads
 
-For real-time game state access while the game is running, add the `CodotGameConnector` as an autoload:
+### CodotOutputCapture (Automatic)
+
+This autoload is **automatically registered** when you enable the Codot plugin. It provides:
+- Capturing debug output (print, errors, warnings) from running games
+- Receiving input simulation commands from the editor
+- Screenshot capture from running games
+
+The autoload uses Godot's `EngineDebugger` to communicate with the editor, which works across the editor/game process boundary.
+
+### CodotGameConnector (Optional, Advanced)
+
+For real-time game state access while the game is running, you can optionally add the `CodotGameConnector` as an autoload:
 
 1. Go to **Project → Project Settings → Autoload**
 2. Add `addons/codot/game_connector.gd`
 3. Name it `CodotGame` (or any name you prefer)
 
-This enables:
-- Real-time scene tree inspection
+This enables additional features:
+- Real-time scene tree inspection (from game's perspective)
 - Variable monitoring
 - Method calling on game nodes
-- Input simulation within the game context
+
+**Note:** Most users don't need this - the automatic `CodotOutputCapture` handles input simulation and output capture.
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    Godot Editor                          │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │            Codot Plugin                         │  │
-│  │  ┌──────────────┐  ┌──────────────────────────┐   │  │
-│  │  │ WebSocket    │  │ Command Handler          │   │  │
-│  │  │ Server       │◄─┤ - play/stop/pause        │   │  │
-│  │  │ (port 6850)  │  │ - scene inspection       │   │  │
-│  │  └──────┬───────┘  │ - input simulation       │   │  │
-│  │         │          └──────────────────────────┘   │  │
-│  │         │          ┌──────────────────────────┐   │  │
-│  │         │          │ Debug Monitor            │   │  │
-│  │         ├─────────►│ - error capture          │   │  │
-│  │         │          │ - log streaming          │   │  │
-│  │         │          └──────────────────────────┘   │  │
-│  └─────────┼──────────────────────────────────────────┘  │
-│            │                                             │
-│  ┌─────────▼──────────────────────────────────────────┐  │
-│  │              Running Game                          │  │
-│  │  ┌──────────────────────────────────────────────┐  │  │
-│  │  │ GameConnector (autoload)                     │  │  │
-│  │  │ - scene tree access                          │  │  │
-│  │  │ - variable inspection                        │  │  │
-│  │  │ - method calling                             │  │  │
-│  │  └──────────────────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         EDITOR PROCESS                                   │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │ Codot Plugin                                                       │  │
+│  │  ├─ WebSocket Server (port 6850) ◄─── MCP Server (Python)          │  │
+│  │  ├─ Command Handler                                                │  │
+│  │  └─ EditorDebuggerPlugin ───────────────────────────┐              │  │
+│  └──────────────────────────────────────────────────────│──────────────┘  │
+└─────────────────────────────────────────────────────────│─────────────────┘
+                                                          │ EngineDebugger
+                                                          │ Protocol
+┌─────────────────────────────────────────────────────────│─────────────────┐
+│                         GAME PROCESS                    ▼                 │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │ CodotOutputCapture (autoload)                                      │  │
+│  │  ├─ Receives input commands → Input.parse_input_event()           │  │
+│  │  ├─ Captures errors/warnings → Sends to editor                     │  │
+│  │  └─ Takes screenshots → Sends result to editor                     │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Available Commands

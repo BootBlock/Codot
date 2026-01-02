@@ -47,7 +47,80 @@ func _on_editor_message(message: String, data: Array) -> bool:
 			if data.size() > 0 and data[0] is Dictionary:
 				_take_screenshot(data[0].get("path", "user://screenshot.png"))
 			return true
+		"simulate_input":
+			if data.size() > 0 and data[0] is Dictionary:
+				_handle_simulate_input(data[0])
+			return true
 	return false
+
+
+## Handle input simulation commands from the editor.
+## This runs in the GAME process, so Input.parse_input_event() works correctly.
+func _handle_simulate_input(params: Dictionary) -> void:
+	var input_type: String = params.get("type", "")
+	var event: InputEvent = null
+	
+	match input_type:
+		"action":
+			var action_event := InputEventAction.new()
+			action_event.action = params.get("action", "")
+			action_event.pressed = params.get("pressed", true)
+			action_event.strength = params.get("strength", 1.0)
+			event = action_event
+		
+		"key":
+			var key_event := InputEventKey.new()
+			key_event.keycode = params.get("keycode", 0) as Key
+			key_event.pressed = params.get("pressed", true)
+			key_event.echo = params.get("echo", false)
+			key_event.ctrl_pressed = params.get("ctrl", false)
+			key_event.shift_pressed = params.get("shift", false)
+			key_event.alt_pressed = params.get("alt", false)
+			key_event.meta_pressed = params.get("meta", false)
+			event = key_event
+		
+		"mouse_button":
+			var mouse_event := InputEventMouseButton.new()
+			mouse_event.button_index = params.get("button", 1) as MouseButton
+			mouse_event.pressed = params.get("pressed", true)
+			mouse_event.position = Vector2(params.get("x", 0), params.get("y", 0))
+			mouse_event.global_position = mouse_event.position
+			mouse_event.double_click = params.get("double_click", false)
+			event = mouse_event
+		
+		"mouse_motion":
+			var motion_event := InputEventMouseMotion.new()
+			motion_event.position = Vector2(params.get("x", 0), params.get("y", 0))
+			motion_event.global_position = motion_event.position
+			motion_event.relative = Vector2(params.get("rel_x", 0), params.get("rel_y", 0))
+			motion_event.velocity = Vector2(params.get("vel_x", 0), params.get("vel_y", 0))
+			event = motion_event
+		
+		"joypad_button":
+			var joy_event := InputEventJoypadButton.new()
+			joy_event.button_index = params.get("button", 0) as JoyButton
+			joy_event.pressed = params.get("pressed", true)
+			joy_event.device = params.get("device", 0)
+			event = joy_event
+		
+		"joypad_motion":
+			var joy_motion := InputEventJoypadMotion.new()
+			joy_motion.axis = params.get("axis", 0) as JoyAxis
+			joy_motion.axis_value = params.get("value", 0.0)
+			joy_motion.device = params.get("device", 0)
+			event = joy_motion
+	
+	if event:
+		Input.parse_input_event(event)
+		_send_to_editor("input_result", {
+			"success": true,
+			"type": input_type,
+		})
+	else:
+		_send_to_editor("input_result", {
+			"success": false,
+			"error": "Unknown input type: " + input_type,
+		})
 
 
 ## Take a screenshot of the current viewport and save it

@@ -598,6 +598,12 @@ The MCP server exposes 80+ tools. Key categories:
 - `godot_simulate_mouse_button` - Mouse clicks
 - `godot_simulate_action` - Input actions
 
+**Note:** Input simulation commands automatically route through the debugger protocol when the game is running. This means:
+- When game is **running**: Input events are sent to the game process via `EngineDebugger` and executed by `CodotOutputCapture`
+- When game is **not running**: Input events are parsed in the editor context (useful for editor UI testing only)
+
+The response includes a `routed_to_game` field indicating which path was used.
+
 ## Testing
 
 ### Running GUT Tests
@@ -771,49 +777,57 @@ The debug capture system has two components:
    - Receives messages from the running game via `EngineDebugger`
    - Stores entries in a circular buffer (max 1000)
    - Provides `get_entries()`, `get_summary()`, `get_diagnostics()`
+   - Can send messages TO the game via `session.send_message()`
 
 2. **CodotOutputCapture** (`output_capture.gd`) - Runs in the game (autoload)
    - Sends messages back to editor via `EngineDebugger.send_message("codot:...", data)`
-   - Can explicitly capture errors, warnings, and print statements
-   - Auto-registered as an autoload by the plugin
+   - Receives commands from editor via `EngineDebugger.register_message_capture()`
+   - Handles input simulation by calling `Input.parse_input_event()` in the game process
+   - **Auto-registered as an autoload** when the Codot plugin is enabled
 
 ### How It Works
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Running Game                             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  CodotOutputCapture (autoload)                      │    │
-│  │  - EngineDebugger.send_message("codot:entry", {...})│    │
-│  └───────────────────────┬─────────────────────────────┘    │
-└──────────────────────────│──────────────────────────────────┘
-                           │ EngineDebugger protocol
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
 │                    Godot Editor                             │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  EditorDebuggerPlugin                               │    │
 │  │  - _capture("codot:entry", data, session_id)        │    │
-│  │  - Stores in _entries array                         │    │
+│  │  - session.send_message("codot:simulate_input",...)│    │
 │  └───────────────────────┬─────────────────────────────┘    │
-│                          ▼                                  │
+│                          │ EngineDebugger protocol          │
+└──────────────────────────│──────────────────────────────────┘
+                           │ (bidirectional)
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Running Game                             │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │  CommandHandler                                     │    │
-│  │  - get_debug_output → debugger_plugin.get_entries() │    │
+│  │  CodotOutputCapture (autoload)                      │    │
+│  │  - Receives: ping, screenshot, simulate_input       │    │
+│  │  - Sends: ready, entry, pong, screenshot_result     │    │
+│  │  - Input.parse_input_event() ← executed HERE        │    │
 │  └─────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Message Types
 
+#### Editor → Game (via `session.send_message()`)
+| Message | Description |
+|---------|-------------|
+| `codot:ping` | Check if game-side capture is active |
+| `codot:screenshot` | Request screenshot from game |
+| `codot:simulate_input` | Send input event to be parsed in game |
+
+#### Game → Editor (via `EngineDebugger.send_message()`)
 | Message | Description |
 |---------|-------------|
 | `codot:ready` | Game-side capture initialized |
 | `codot:entry` | Captured log entry (error/warning/print) |
-| `codot:test_complete` | Test finished signal |
 | `codot:pong` | Response to ping from editor |
-| `codot:screenshot` | Request screenshot from game |
 | `codot:screenshot_result` | Screenshot result from game |
+| `codot:input_result` | Result of input simulation |
+| `codot:test_complete` | Test finished signal |
 
 ## InputMap Commands
 
