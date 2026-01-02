@@ -59,6 +59,9 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	_log("Shutting down Codot plugin...")
 	
+	# Unregister Command Palette commands
+	_unregister_command_palette_commands()
+	
 	# Disconnect from settings changes
 	if _editor_settings and _editor_settings.settings_changed.is_connected(_on_settings_changed):
 		_editor_settings.settings_changed.disconnect(_on_settings_changed)
@@ -88,6 +91,16 @@ func _exit_tree() -> void:
 	_log("Codot plugin shutdown complete")
 
 
+## Unregister Codot commands from the Editor Command Palette.
+func _unregister_command_palette_commands() -> void:
+	var palette := EditorInterface.get_command_palette()
+	if not palette:
+		return
+	palette.remove_command("codot/settings")
+	palette.remove_command("codot/reconnect")
+	palette.remove_command("codot/status")
+
+
 ## Adds the Codot dock panel to the editor.
 func _add_dock_panel() -> void:
 	var dock_scene = preload("res://addons/codot/codot_panel.tscn")
@@ -102,17 +115,77 @@ func _add_dock_panel() -> void:
 		_dock.set_websocket_server(_server)
 	
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
+	
+	# Set a custom icon for the dock tab
+	var icon: Texture2D = EditorInterface.get_editor_theme().get_icon("Node", "EditorIcons")
+	self.set_dock_tab_icon(_dock, icon)
+	
 	_log("Codot panel added to dock")
+	
+	# Register Command Palette commands
+	_register_command_palette_commands()
 
 
 ## Handles settings button click from the panel.
 func _on_settings_requested() -> void:
 	_log("Opening Codot settings...")
-	# Open Command Palette - user can type "Codot" to find the settings
-	# EditorCommandPalette inherits from Window, so use popup_centered()
+	# Open Editor Settings and navigate to Codot section
+	EditorInterface.get_editor_settings()
+	EditorInterface.popup_dialog_centered(
+		EditorInterface.get_base_control().get_tree().get_root().find_child("EditorSettingsDialog", true, false),
+		Vector2i(900, 700)
+	)
+	# Note: Unfortunately there's no direct way to navigate to a specific section
+	# The user will need to search for "Codot" in the Editor Settings
+	# Show helpful message
+	if _dock and _dock.has_method("show_settings_hint"):
+		_dock.show_settings_hint()
+
+
+## Register Codot commands with the Editor Command Palette.
+func _register_command_palette_commands() -> void:
 	var palette := EditorInterface.get_command_palette()
-	if palette:
-		palette.popup_centered(Vector2i(600, 400))
+	if not palette:
+		return
+	
+	# Add useful Codot commands to the Command Palette
+	palette.add_command(
+		"Codot: Open Settings",
+		"codot/settings",
+		Callable(self, "_cmd_open_settings")
+	)
+	palette.add_command(
+		"Codot: Reconnect to VS Code",
+		"codot/reconnect",
+		Callable(self, "_cmd_reconnect")
+	)
+	palette.add_command(
+		"Codot: Show Server Status",
+		"codot/status",
+		Callable(self, "_cmd_show_status")
+	)
+
+
+## Command Palette: Open Settings
+func _cmd_open_settings() -> void:
+	_on_settings_requested()
+
+
+## Command Palette: Reconnect to VS Code
+func _cmd_reconnect() -> void:
+	if _dock and _dock.has_method("force_reconnect"):
+		_dock.force_reconnect()
+		_log("Reconnecting to VS Code...")
+
+
+## Command Palette: Show Server Status
+func _cmd_show_status() -> void:
+	var status := "MCP Server: %s\nPort: %d\nClients: %d" % [
+		"Running" if _server else "Not running",
+		CodotSettingsRef.get_setting("websocket_port", 6850),
+		_server.get_client_count() if _server else 0
+	]
+	_log(status)
 
 
 ## Handles Send to AI button click from the panel.

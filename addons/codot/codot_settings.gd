@@ -53,6 +53,27 @@ const SETTING_DEFINITIONS := {
 		"hint_string": "20,200",
 		"description": "Maximum number of characters to show in the prompt preview in the list view. Longer values show more context but take more space."
 	},
+	"pre_prompt_message": {
+		"default": "",
+		"type": TYPE_STRING,
+		"hint": PROPERTY_HINT_MULTILINE_TEXT,
+		"hint_string": "",
+		"description": "Text to prepend before every prompt sent to VS Code. Useful for adding context like 'You are working on a Godot 4.x game...' or project-specific instructions."
+	},
+	"post_prompt_message": {
+		"default": "",
+		"type": TYPE_STRING,
+		"hint": PROPERTY_HINT_MULTILINE_TEXT,
+		"hint_string": "",
+		"description": "Text to append after every prompt sent to VS Code. Useful for adding reminders like 'Remember to follow the coding style in AGENTS.md' or standard closing instructions."
+	},
+	"wrap_prompts_with_prefix_suffix": {
+		"default": true,
+		"type": TYPE_BOOL,
+		"hint": PROPERTY_HINT_NONE,
+		"hint_string": "",
+		"description": "Enable wrapping prompts with pre-prompt and post-prompt messages. Disable to temporarily send prompts without the wrapper text."
+	},
 	
 	# ===================
 	# MCP Server Settings
@@ -139,6 +160,13 @@ const SETTING_DEFINITIONS := {
 		"hint_string": "",
 		"description": "Show the connection status indicator (● Connected/Disconnected) in the Codot panel header. Disable for a cleaner interface if you don't need visual feedback."
 	},
+	"show_reconnecting_status": {
+		"default": true,
+		"type": TYPE_BOOL,
+		"hint": PROPERTY_HINT_NONE,
+		"hint_string": "",
+		"description": "Show 'Connecting...' with animation during reconnection attempts. When disabled, shows static 'Disconnected' text instead of the animated connecting status."
+	},
 	"confirm_prompt_delete": {
 		"default": false,
 		"type": TYPE_BOOL,
@@ -159,6 +187,31 @@ const SETTING_DEFINITIONS := {
 		"hint": PROPERTY_HINT_RANGE,
 		"hint_string": "0,365",
 		"description": "Automatically delete archived prompts older than this many days. Set to 0 to keep archived prompts forever. Helps manage storage for long-term use."
+	},
+	
+	# ===================
+	# Security & Safeguards
+	# ===================
+	"restrict_file_access_to_project": {
+		"default": true,
+		"type": TYPE_BOOL,
+		"hint": PROPERTY_HINT_NONE,
+		"hint_string": "",
+		"description": "Restrict AI file operations to within the project directory (res://). Prevents the AI from reading or writing files outside the project. Strongly recommended to keep enabled."
+	},
+	"allow_system_commands": {
+		"default": false,
+		"type": TYPE_BOOL,
+		"hint": PROPERTY_HINT_NONE,
+		"hint_string": "",
+		"description": "Allow the AI to execute system shell commands. WARNING: This is a security risk. Only enable if you trust the AI agent completely and understand the risks."
+	},
+	"max_file_size_kb": {
+		"default": 1024,
+		"type": TYPE_INT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "64,10240",
+		"description": "Maximum file size in KB that the AI can read or write. Prevents accidental creation of very large files that could fill disk space."
 	},
 }
 

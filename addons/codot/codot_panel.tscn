@@ -1,195 +1,207 @@
-[gd_scene load_steps=2 format=3 uid="uid://bv8fkr2xm4qc1"]
+[gd_scene format=3 uid="uid://bv8fkr2xm4qc1"]
 
-[ext_resource type="Script" path="res://addons/codot/codot_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://bsgphocfy3in1" path="res://addons/codot/codot_panel.gd" id="1_panel"]
 
-[node name="Codot" type="PanelContainer"]
+[node name="Codot" type="PanelContainer" unique_id=62443715]
 offset_right = 300.0
 offset_bottom = 600.0
 script = ExtResource("1_panel")
 
-[node name="MainVBox" type="VBoxContainer" parent="."]
+[node name="MainVBox" type="VBoxContainer" parent="." unique_id=1152276767]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Header" type="HBoxContainer" parent="MainVBox"]
+[node name="Header" type="HBoxContainer" parent="MainVBox" unique_id=1541726460]
 layout_mode = 2
 
-[node name="TitleLabel" type="Label" parent="MainVBox/Header"]
+[node name="TitleLabel" type="Label" parent="MainVBox/Header" unique_id=1643313666]
 layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_constants/shadow_outline_size = 1
 theme_override_font_sizes/font_size = 14
 text = "Codot"
 
-[node name="Spacer" type="Control" parent="MainVBox/Header"]
+[node name="Spacer" type="Control" parent="MainVBox/Header" unique_id=1162179814]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="StatusIndicator" type="Label" parent="MainVBox/Header"]
+[node name="StatusIndicator" type="Label" parent="MainVBox/Header" unique_id=1325774554]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Connection status to VS Code Copilot Bridge"
-theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
-text = "● Checking..."
+tooltip_text = "Connected to VS Code Copilot Bridge on port 6851"
+mouse_filter = 1
+theme_override_colors/font_color = Color(0.2, 0.8, 0.2, 1)
+text = "● Connected"
 
-[node name="HeaderSeparator" type="HSeparator" parent="MainVBox"]
+[node name="HeaderSeparator" type="HSeparator" parent="MainVBox" unique_id=174022349]
 layout_mode = 2
 
-[node name="Toolbar" type="HBoxContainer" parent="MainVBox"]
+[node name="Toolbar" type="HBoxContainer" parent="MainVBox" unique_id=1816139824]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="NewPromptButton" type="Button" parent="MainVBox/Toolbar"]
+[node name="NewPromptButton" type="Button" parent="MainVBox/Toolbar" unique_id=498333222]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Create a new prompt (Ctrl+N)"
 text = "+ New"
 
-[node name="DuplicateButton" type="Button" parent="MainVBox/Toolbar"]
+[node name="DuplicateButton" type="Button" parent="MainVBox/Toolbar" unique_id=947018722]
 unique_name_in_owner = true
 layout_mode = 2
-disabled = true
 tooltip_text = "Duplicate the selected prompt"
+disabled = true
 text = "⧉"
 
-[node name="ExportButton" type="Button" parent="MainVBox/Toolbar"]
+[node name="ExportButton" type="Button" parent="MainVBox/Toolbar" unique_id=908839172]
 unique_name_in_owner = true
 layout_mode = 2
-disabled = true
 tooltip_text = "Export the selected prompt to a file"
+disabled = true
 text = "📤"
 
-[node name="ImportButton" type="Button" parent="MainVBox/Toolbar"]
+[node name="ImportButton" type="Button" parent="MainVBox/Toolbar" unique_id=447082021]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Import a prompt from a file"
 text = "📥"
 
-[node name="ToolbarSpacer" type="Control" parent="MainVBox/Toolbar"]
+[node name="ToolbarSpacer" type="Control" parent="MainVBox/Toolbar" unique_id=392121155]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ArchivedToggle" type="Button" parent="MainVBox/Toolbar"]
+[node name="ArchivedToggle" type="Button" parent="MainVBox/Toolbar" unique_id=651550018]
 unique_name_in_owner = true
 layout_mode = 2
-toggle_mode = true
 tooltip_text = "Show archived prompts"
+toggle_mode = true
 text = "📦 Archived"
 
-[node name="ToolbarSeparator" type="VSeparator" parent="MainVBox/Toolbar"]
+[node name="ToolbarSeparator" type="VSeparator" parent="MainVBox/Toolbar" unique_id=619705938]
 layout_mode = 2
 
-[node name="SettingsButton" type="Button" parent="MainVBox/Toolbar"]
+[node name="WrapperButton" type="Button" parent="MainVBox/Toolbar" unique_id=163347140]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Edit pre/post prompt wrappers - text added before/after all prompts"
+text = "📋"
+
+[node name="SettingsButton" type="Button" parent="MainVBox/Toolbar" unique_id=440381206]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Open Codot settings in Editor Settings"
 text = "⚙"
+autowrap_trim_flags = 192
 
-[node name="ReconnectButton" type="Button" parent="MainVBox/Toolbar"]
+[node name="ReconnectButton" type="Button" parent="MainVBox/Toolbar" unique_id=1837615381]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Reconnect to VS Code"
 text = "↻"
 
-[node name="PromptListContainer" type="ScrollContainer" parent="MainVBox"]
+[node name="PromptListContainer" type="ScrollContainer" parent="MainVBox" unique_id=1641375097]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="PromptList" type="VBoxContainer" parent="MainVBox/PromptListContainer"]
+[node name="PromptList" type="VBoxContainer" parent="MainVBox/PromptListContainer" unique_id=1183819563]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="EmptyLabel" type="Label" parent="MainVBox/PromptListContainer/PromptList"]
+[node name="EmptyLabel" type="RichTextLabel" parent="MainVBox/PromptListContainer/PromptList" unique_id=368714568]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+size_flags_vertical = 3
+bbcode_enabled = true
 text = "No prompts yet.
 Click '+ New' to create one."
+fit_content = true
+scroll_active = false
 horizontal_alignment = 1
 vertical_alignment = 1
-autowrap_mode = 2
 
-[node name="EditorSeparator" type="HSeparator" parent="MainVBox"]
+[node name="EditorSeparator" type="HSeparator" parent="MainVBox" unique_id=54555220]
 layout_mode = 2
 
-[node name="EditorSection" type="VBoxContainer" parent="MainVBox"]
+[node name="EditorSection" type="VBoxContainer" parent="MainVBox" unique_id=41386609]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 6
 
-[node name="EditorHeader" type="HBoxContainer" parent="MainVBox/EditorSection"]
+[node name="EditorHeader" type="HBoxContainer" parent="MainVBox/EditorSection" unique_id=669637250]
 layout_mode = 2
 
-[node name="PromptTitleEdit" type="LineEdit" parent="MainVBox/EditorSection/EditorHeader"]
+[node name="PromptTitleEdit" type="LineEdit" parent="MainVBox/EditorSection/EditorHeader" unique_id=1490819807]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-editable = false
 placeholder_text = "Select a prompt..."
+editable = false
 
-[node name="DeleteButton" type="Button" parent="MainVBox/EditorSection/EditorHeader"]
+[node name="DeleteButton" type="Button" parent="MainVBox/EditorSection/EditorHeader" unique_id=1179770745]
 unique_name_in_owner = true
 layout_mode = 2
-disabled = true
 tooltip_text = "Delete this prompt"
+disabled = true
 text = "🗑"
 
-[node name="PromptTextEdit" type="TextEdit" parent="MainVBox/EditorSection"]
+[node name="PromptTextEdit" type="TextEdit" parent="MainVBox/EditorSection" unique_id=1529404115]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 150)
-editable = false
 placeholder_text = "Select a prompt to edit...
 
 Tips:
 • Use '+ New' to create a prompt
 • Click a prompt in the list to select it
 • Changes are saved automatically"
+editable = false
 wrap_mode = 1
 
-[node name="ActionRow" type="HBoxContainer" parent="MainVBox/EditorSection"]
+[node name="ActionRow" type="HBoxContainer" parent="MainVBox/EditorSection" unique_id=370013521]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="AutoSaveIndicator" type="Label" parent="MainVBox/EditorSection/ActionRow"]
+[node name="AutoSaveIndicator" type="Label" parent="MainVBox/EditorSection/ActionRow" unique_id=1275611025]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_font_sizes/font_size = 11
-text = ""
 
-[node name="ActionSpacer" type="Control" parent="MainVBox/EditorSection/ActionRow"]
+[node name="ActionSpacer" type="Control" parent="MainVBox/EditorSection/ActionRow" unique_id=239666694]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="SendButton" type="Button" parent="MainVBox/EditorSection/ActionRow"]
+[node name="SendButton" type="Button" parent="MainVBox/EditorSection/ActionRow" unique_id=1837455574]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Select a prompt first"
 disabled = true
-tooltip_text = "Send prompt to VS Code AI (Ctrl+Enter)"
 text = "Send to AI ➤"
 
-[node name="FooterSeparator" type="HSeparator" parent="MainVBox"]
+[node name="FooterSeparator" type="HSeparator" parent="MainVBox" unique_id=1677416811]
 layout_mode = 2
 
-[node name="Footer" type="HBoxContainer" parent="MainVBox"]
+[node name="Footer" type="HBoxContainer" parent="MainVBox" unique_id=1713681493]
 layout_mode = 2
 
-[node name="PromptCountLabel" type="Label" parent="MainVBox/Footer"]
+[node name="PromptCountLabel" type="Label" parent="MainVBox/Footer" unique_id=54122410]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_font_sizes/font_size = 11
 text = "0 prompts"
 
-[node name="FooterSpacer" type="Control" parent="MainVBox/Footer"]
+[node name="FooterSpacer" type="Control" parent="MainVBox/Footer" unique_id=922746655]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HelpLabel" type="Label" parent="MainVBox/Footer"]
+[node name="HelpLabel" type="Label" parent="MainVBox/Footer" unique_id=2508503]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_font_sizes/font_size = 11

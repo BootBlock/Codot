@@ -27,6 +27,9 @@ extends Node
 ##   - commands_resource.gd   - Resources, animations, audio
 ##   - commands_debug.gd      - Performance, memory, advanced debug
 ##   - commands_plugin.gd     - Plugin management
+##   - commands_batch.gd      - Batch and compound commands
+##   - commands_input_map.gd  - InputMap action management
+##   - commands_autoload.gd   - Autoload singleton management
 ##
 ## =============================================================================
 
@@ -56,6 +59,9 @@ var _advanced: Object = null
 var _resource: Object = null
 var _debug: Object = null
 var _plugin: Object = null
+var _batch: Object = null
+var _input_map: Object = null
+var _autoload: Object = null
 
 
 func _ready() -> void:
@@ -79,6 +85,13 @@ func _load_command_modules() -> void:
 	_resource = _load_module(base_path + "commands_resource.gd")
 	_debug = _load_module(base_path + "commands_debug.gd")
 	_plugin = _load_module(base_path + "commands_plugin.gd")
+	_batch = _load_module(base_path + "commands_batch.gd")
+	_input_map = _load_module(base_path + "commands_input_map.gd")
+	_autoload = _load_module(base_path + "commands_autoload.gd")
+	
+	# Set command handler reference for batch commands
+	if _batch != null and _batch.has_method("set_command_handler"):
+		_batch.set_command_handler(self)
 
 
 ## Load a single command module and set up its references.
@@ -101,7 +114,8 @@ func _load_module(path: String) -> Object:
 ## Update references in all modules when editor_interface or debugger_plugin change.
 func _update_all_modules() -> void:
 	var modules := [_status, _scene_tree, _file, _scene, _editor, _script, 
-					_node, _input, _gut, _advanced, _resource, _debug, _plugin]
+					_node, _input, _gut, _advanced, _resource, _debug, _plugin, _batch,
+					_input_map, _autoload]
 	
 	for module in modules:
 		if module != null and module.has_method("setup"):
@@ -192,6 +206,14 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _file.cmd_copy_file(cmd_id, params)
 		"get_file_info":
 			return _file.cmd_get_file_info(cmd_id, params)
+		"find_file":
+			return _file.cmd_find_file(cmd_id, params)
+		"find_resources_by_type":
+			return _file.cmd_find_resources_by_type(cmd_id, params)
+		"search_in_files":
+			return _file.cmd_search_in_files(cmd_id, params)
+		"find_nodes_by_script":
+			return _file.cmd_find_nodes_by_script(cmd_id, params)
 		
 		# =================================================================
 		# Scene Operations (commands_scene.gd)
@@ -390,6 +412,58 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _plugin.cmd_get_plugins(cmd_id, params)
 		"reload_project":
 			return _plugin.cmd_reload_project(cmd_id, params)
+		
+		# =================================================================
+		# Batch & Compound Commands (commands_batch.gd)
+		# =================================================================
+		"batch_commands":
+			return await _batch.cmd_batch_commands(cmd_id, params)
+		"bulk_set_properties":
+			return _batch.cmd_bulk_set_properties(cmd_id, params)
+		"create_complete_scene":
+			return _batch.cmd_create_complete_scene(cmd_id, params)
+		"create_scene_with_script":
+			return _batch.cmd_create_scene_with_script(cmd_id, params)
+		
+		# =================================================================
+		# InputMap Management (commands_input_map.gd)
+		# =================================================================
+		"get_input_actions":
+			return _input_map.cmd_get_input_actions(cmd_id, params)
+		"get_input_action":
+			return _input_map.cmd_get_input_action(cmd_id, params)
+		"add_input_action":
+			return _input_map.cmd_add_input_action(cmd_id, params)
+		"remove_input_action":
+			return _input_map.cmd_remove_input_action(cmd_id, params)
+		"add_input_event_key":
+			return _input_map.cmd_add_input_event_key(cmd_id, params)
+		"add_input_event_mouse":
+			return _input_map.cmd_add_input_event_mouse(cmd_id, params)
+		"add_input_event_joypad_button":
+			return _input_map.cmd_add_input_event_joypad_button(cmd_id, params)
+		"add_input_event_joypad_axis":
+			return _input_map.cmd_add_input_event_joypad_axis(cmd_id, params)
+		"clear_input_action_events":
+			return _input_map.cmd_clear_input_action_events(cmd_id, params)
+		
+		# =================================================================
+		# Autoload Management (commands_autoload.gd)
+		# =================================================================
+		"get_autoloads":
+			return _autoload.cmd_get_autoloads(cmd_id, params)
+		"get_autoload":
+			return _autoload.cmd_get_autoload(cmd_id, params)
+		"add_autoload":
+			return _autoload.cmd_add_autoload(cmd_id, params)
+		"remove_autoload":
+			return _autoload.cmd_remove_autoload(cmd_id, params)
+		"rename_autoload":
+			return _autoload.cmd_rename_autoload(cmd_id, params)
+		"set_autoload_path":
+			return _autoload.cmd_set_autoload_path(cmd_id, params)
+		"reorder_autoloads":
+			return _autoload.cmd_reorder_autoloads(cmd_id, params)
 		
 		# =================================================================
 		# Unknown Command

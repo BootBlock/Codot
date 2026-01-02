@@ -444,6 +444,130 @@ COMMANDS: dict[str, CommandDefinition] = {
     ),
     
     # ========================================================================
+    # QUICK FIND OPERATIONS
+    # ========================================================================
+    "find_file": CommandDefinition(
+        description="Find files by name pattern (glob-like matching). Returns matching file paths. Use to quickly locate files without scanning the entire project.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Search pattern - supports wildcards: 'player' (contains), '*.gd' (ends with), 'test_*' (starts with)",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Directory to search in (default: 'res://')",
+                    "default": "res://",
+                },
+                "extensions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Limit to specific extensions (e.g., ['gd', 'tscn']). Empty = all files.",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results (default: 50)",
+                    "default": 50,
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Case-sensitive matching (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["pattern"],
+        },
+    ),
+    
+    "find_resources_by_type": CommandDefinition(
+        description="Find all resources of a specific type in the project. Useful for finding all scripts, scenes, textures, etc. Returns array of {path, type}.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "Resource type to find: 'Script', 'PackedScene', 'Texture2D', 'AudioStream', 'Shader', 'Material', 'Resource', 'Font', 'Animation', 'Mesh', 'Theme'",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Directory to search in (default: 'res://')",
+                    "default": "res://",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results (default: 100)",
+                    "default": 100,
+                },
+            },
+            "required": ["type"],
+        },
+    ),
+    
+    "search_in_files": CommandDefinition(
+        description="Search for text within files (grep-like). Returns files with matches, line numbers, and context. Useful for finding usages of classes, functions, or variables.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Text to search for",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Directory to search in (default: 'res://')",
+                    "default": "res://",
+                },
+                "extensions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "File extensions to search (default: ['gd', 'tscn', 'tres', 'cfg', 'json', 'md', 'txt'])",
+                },
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Case-sensitive search (default: false)",
+                    "default": False,
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of files with matches (default: 50)",
+                    "default": 50,
+                },
+                "context_lines": {
+                    "type": "integer",
+                    "description": "Lines of context around matches (default: 1)",
+                    "default": 1,
+                },
+            },
+            "required": ["query"],
+        },
+    ),
+    
+    "find_nodes_by_script": CommandDefinition(
+        description="Find all nodes that use a specific script. Searches scene files (.tscn) for script references. Returns scene paths and node names.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "script_path": {
+                    "type": "string",
+                    "description": "Path to the script (e.g., 'res://player.gd')",
+                },
+                "search_scenes": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Specific scenes to search. If not specified, searches all .tscn files.",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results (default: 50)",
+                    "default": 50,
+                },
+            },
+            "required": ["script_path"],
+        },
+    ),
+    
+    # ========================================================================
     # SCENE OPERATIONS
     # ========================================================================
     "open_scene": CommandDefinition(
@@ -1085,8 +1209,182 @@ COMMANDS: dict[str, CommandDefinition] = {
         description="Get all input actions defined in the project's Input Map",
         input_schema={
             "type": "object",
-            "properties": {},
+            "properties": {
+                "include_builtins": {
+                    "type": "boolean",
+                    "description": "Include built-in UI actions (ui_*)",
+                    "default": False,
+                },
+            },
             "required": [],
+        },
+    ),
+    
+    "get_input_action": CommandDefinition(
+        description="Get detailed information about a specific input action including all key/button bindings",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action to query",
+                },
+            },
+            "required": ["action"],
+        },
+    ),
+    
+    "add_input_action": CommandDefinition(
+        description="Add a new input action to the Input Map",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the new input action",
+                },
+                "deadzone": {
+                    "type": "number",
+                    "description": "Deadzone for analog inputs (0.0 to 1.0)",
+                    "default": 0.5,
+                },
+            },
+            "required": ["action"],
+        },
+    ),
+    
+    "remove_input_action": CommandDefinition(
+        description="Remove an input action from the Input Map",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action to remove",
+                },
+            },
+            "required": ["action"],
+        },
+    ),
+    
+    "add_input_event_key": CommandDefinition(
+        description="Add a keyboard key binding to an input action",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action",
+                },
+                "key": {
+                    "type": "string",
+                    "description": "Key name (e.g., 'W', 'SPACE', 'ENTER', 'UP', 'F1')",
+                },
+                "shift": {
+                    "type": "boolean",
+                    "description": "Require Shift modifier",
+                    "default": False,
+                },
+                "ctrl": {
+                    "type": "boolean",
+                    "description": "Require Ctrl modifier",
+                    "default": False,
+                },
+                "alt": {
+                    "type": "boolean",
+                    "description": "Require Alt modifier",
+                    "default": False,
+                },
+                "meta": {
+                    "type": "boolean",
+                    "description": "Require Meta/Win/Cmd modifier",
+                    "default": False,
+                },
+            },
+            "required": ["action", "key"],
+        },
+    ),
+    
+    "add_input_event_mouse": CommandDefinition(
+        description="Add a mouse button binding to an input action",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action",
+                },
+                "button": {
+                    "type": "integer",
+                    "description": "Mouse button (1=left, 2=right, 3=middle)",
+                },
+            },
+            "required": ["action", "button"],
+        },
+    ),
+    
+    "add_input_event_joypad_button": CommandDefinition(
+        description="Add a gamepad button binding to an input action",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action",
+                },
+                "button": {
+                    "type": "integer",
+                    "description": "Joypad button index (0=A/Cross, 1=B/Circle, etc.)",
+                },
+                "device": {
+                    "type": "integer",
+                    "description": "Device ID (-1 for all devices)",
+                    "default": -1,
+                },
+            },
+            "required": ["action", "button"],
+        },
+    ),
+    
+    "add_input_event_joypad_axis": CommandDefinition(
+        description="Add a gamepad axis binding to an input action",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action",
+                },
+                "axis": {
+                    "type": "integer",
+                    "description": "Axis index (0=left stick X, 1=left stick Y, etc.)",
+                },
+                "axis_value": {
+                    "type": "number",
+                    "description": "Axis value (-1.0 for negative, 1.0 for positive)",
+                    "default": 1.0,
+                },
+                "device": {
+                    "type": "integer",
+                    "description": "Device ID (-1 for all devices)",
+                    "default": -1,
+                },
+            },
+            "required": ["action", "axis"],
+        },
+    ),
+    
+    "clear_input_action_events": CommandDefinition(
+        description="Remove all input events (bindings) from an input action",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action to clear",
+                },
+            },
+            "required": ["action"],
         },
     ),
     
@@ -1691,6 +1989,120 @@ COMMANDS: dict[str, CommandDefinition] = {
     ),
     
     # ========================================================================
+    # AUTOLOAD MANAGEMENT
+    # ========================================================================
+    "get_autoloads": CommandDefinition(
+        description="List all autoload singletons defined in the project. Autoloads are scripts or scenes that are automatically loaded at project start.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "get_autoload": CommandDefinition(
+        description="Get detailed information about a specific autoload singleton including its path and order.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the autoload singleton",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+    
+    "add_autoload": CommandDefinition(
+        description="Add a new autoload singleton to the project. The script or scene will be automatically loaded at project start.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name for the autoload (used to access it as a singleton)",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Path to the script or scene file (e.g., 'res://globals/game_manager.gd')",
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Whether the autoload is enabled",
+                    "default": True,
+                },
+            },
+            "required": ["name", "path"],
+        },
+    ),
+    
+    "remove_autoload": CommandDefinition(
+        description="Remove an autoload singleton from the project.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the autoload to remove",
+                },
+            },
+            "required": ["name"],
+        },
+    ),
+    
+    "rename_autoload": CommandDefinition(
+        description="Rename an existing autoload singleton.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "old_name": {
+                    "type": "string",
+                    "description": "Current name of the autoload",
+                },
+                "new_name": {
+                    "type": "string",
+                    "description": "New name for the autoload",
+                },
+            },
+            "required": ["old_name", "new_name"],
+        },
+    ),
+    
+    "set_autoload_path": CommandDefinition(
+        description="Change the path of an existing autoload singleton.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the autoload",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "New path for the autoload",
+                },
+            },
+            "required": ["name", "path"],
+        },
+    ),
+    
+    "reorder_autoloads": CommandDefinition(
+        description="Change the loading order of autoloads. Autoloads are loaded in order, so this affects dependency resolution.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "order": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of autoload names in desired order (e.g., ['GameManager', 'AudioManager', 'UIManager'])",
+                },
+            },
+            "required": ["order"],
+        },
+    ),
+    
+    # ========================================================================
     # PLUGIN MANAGEMENT
     # ========================================================================
     "enable_plugin": CommandDefinition(
@@ -1878,6 +2290,168 @@ COMMANDS: dict[str, CommandDefinition] = {
             "type": "object",
             "properties": {},
             "required": [],
+        },
+    ),
+    
+    # ========================================================================
+    # BATCH & COMPOUND COMMANDS
+    # ========================================================================
+    "batch_commands": CommandDefinition(
+        description="Execute multiple commands in sequence. Useful for performing complex operations that require multiple steps. Can return results from all commands or just the final one.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "command": {
+                                "type": "string",
+                                "description": "Command name (e.g., 'create_node', 'set_node_property')",
+                            },
+                            "params": {
+                                "type": "object",
+                                "description": "Parameters for the command",
+                            },
+                        },
+                        "required": ["command"],
+                    },
+                    "description": "Array of commands to execute",
+                },
+                "stop_on_error": {
+                    "type": "boolean",
+                    "description": "Stop execution if a command fails (default: true)",
+                    "default": True,
+                },
+                "return_all_results": {
+                    "type": "boolean",
+                    "description": "Return results from all commands (default: false, returns last result)",
+                    "default": False,
+                },
+            },
+            "required": ["commands"],
+        },
+    ),
+    
+    "bulk_set_properties": CommandDefinition(
+        description="Set multiple properties on one or more nodes in a single call. More efficient than multiple set_node_property calls.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "operations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "node_path": {
+                                "type": "string",
+                                "description": "Path to the node",
+                            },
+                            "properties": {
+                                "type": "object",
+                                "description": "Dictionary of property names to values",
+                            },
+                            "property": {
+                                "type": "string",
+                                "description": "Single property name (alternative to properties dict)",
+                            },
+                            "value": {
+                                "description": "Single property value (use with property)",
+                            },
+                        },
+                        "required": ["node_path"],
+                    },
+                    "description": "Array of property set operations",
+                },
+                "stop_on_error": {
+                    "type": "boolean",
+                    "description": "Stop if a property set fails (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["operations"],
+        },
+    ),
+    
+    "create_complete_scene": CommandDefinition(
+        description="Create a complete scene with nodes in a single call. Specify root type, child nodes, and properties. More efficient than creating scene + multiple create_node calls.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scene_path": {
+                    "type": "string",
+                    "description": "Path to save the scene (e.g., 'res://scenes/player.tscn')",
+                },
+                "root_type": {
+                    "type": "string",
+                    "description": "Type of the root node (default: 'Node2D')",
+                    "default": "Node2D",
+                },
+                "root_name": {
+                    "type": "string",
+                    "description": "Name of the root node (default: derived from scene path)",
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "Node type (e.g., 'Sprite2D', 'CollisionShape2D')",
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Node name",
+                            },
+                            "parent": {
+                                "type": "string",
+                                "description": "Parent node path relative to root (default: '.' for root)",
+                            },
+                            "properties": {
+                                "type": "object",
+                                "description": "Properties to set on the node",
+                            },
+                        },
+                        "required": ["type", "name"],
+                    },
+                    "description": "Array of child nodes to create",
+                },
+                "save": {
+                    "type": "boolean",
+                    "description": "Save the scene after creation (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["scene_path"],
+        },
+    ),
+    
+    "create_scene_with_script": CommandDefinition(
+        description="Create a scene with a script attached to the root node in a single call. Creates both .tscn and .gd files.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scene_path": {
+                    "type": "string",
+                    "description": "Path to save the scene (e.g., 'res://scenes/player.tscn'). Script will be saved with .gd extension.",
+                },
+                "script_content": {
+                    "type": "string",
+                    "description": "GDScript content for the attached script",
+                },
+                "root_type": {
+                    "type": "string",
+                    "description": "Type of the root node (default: 'Node2D')",
+                    "default": "Node2D",
+                },
+                "root_name": {
+                    "type": "string",
+                    "description": "Name of the root node (default: derived from scene path)",
+                },
+            },
+            "required": ["scene_path", "script_content"],
         },
     ),
 }

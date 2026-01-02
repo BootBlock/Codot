@@ -10,7 +10,7 @@ This file provides context and instructions for AI coding agents working on the 
 
 ```
 ┌─────────────────┐     MCP Protocol      ┌──────────────────┐     WebSocket      ┌─────────────────┐
-│   AI Agent      │ ◄──────────────────► │   MCP Server     │ ◄────────────────► │  Godot Editor   │
+│   AI Agent      │ ◄───────────────────► │   MCP Server     │ ◄────────────────► │  Godot Editor   │
 │ (Claude, etc.)  │    (stdio/JSON-RPC)   │   (Python)       │    (port 6850)     │  (GDScript)     │
 └─────────────────┘                       └──────────────────┘                    └─────────────────┘
 ```
@@ -32,6 +32,8 @@ This file provides context and instructions for AI coding agents working on the 
 2. **Type hints**: Always use static typing (`var x: int = 0`)
 3. **Naming**: Use `snake_case` for functions/variables, `PascalCase` for classes
 4. **Error handling**: Return dictionaries with `success`, `error.code`, `error.message`
+5. **Use `self.`**: Always use `self.` prefix when accessing instance members (properties, methods) for clarity
+6. **British English**: Use British English spelling throughout (e.g., "colour", "initialise", "behaviour", "serialise")
 
 ```gdscript
 ## Brief description of what this function does.
@@ -40,8 +42,8 @@ This file provides context and instructions for AI coding agents working on the 
 ## - 'key' (Type, required/optional): Description.
 func _cmd_example(cmd_id: Variant, params: Dictionary) -> Dictionary:
     if some_error:
-        return _error(cmd_id, "ERROR_CODE", "Human readable message")
-    return _success(cmd_id, {"result": value})
+        return self._error(cmd_id, "ERROR_CODE", "Human readable message")
+    return self._success(cmd_id, {"result": value})
 ```
 
 ### Python Conventions
@@ -77,6 +79,8 @@ Commands are organized into modules under `addons/codot/commands/`. To add a new
    - `commands_script.gd` - Script editing and errors
    - `commands_node.gd` - Node manipulation
    - `commands_input.gd` - Input simulation
+   - `commands_input_map.gd` - InputMap action management
+   - `commands_autoload.gd` - Autoload singleton management
    - `commands_gut.gd` - GUT testing framework
    - `commands_advanced.gd` - Signals, methods, groups
    - `commands_resource.gd` - Resources, animations, audio
@@ -642,6 +646,12 @@ When you need to interact with Godot, use these MCP tools:
 | **Wait for output** | `godot_wait_for_output` |
 | **Game state** | `godot_get_game_state` |
 | **Run GUT tests** | `godot_gut_run_and_wait` |
+| **List input actions** | `godot_get_input_actions` |
+| **Add input action** | `godot_add_input_action` |
+| **Add key binding** | `godot_add_input_event_key` |
+| **List autoloads** | `godot_get_autoloads` |
+| **Add autoload** | `godot_add_autoload` |
+| **Remove autoload** | `godot_remove_autoload` |
 
 ## Automation Commands (NEW)
 
@@ -762,7 +772,7 @@ The debug capture system has two components:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Running Game                              │
+│                    Running Game                             │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  CodotOutputCapture (autoload)                      │    │
 │  │  - EngineDebugger.send_message("codot:entry", {...})│    │
@@ -771,15 +781,15 @@ The debug capture system has two components:
                            │ EngineDebugger protocol
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Godot Editor                              │
+│                    Godot Editor                             │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  EditorDebuggerPlugin                               │    │
 │  │  - _capture("codot:entry", data, session_id)        │    │
 │  │  - Stores in _entries array                         │    │
 │  └───────────────────────┬─────────────────────────────┘    │
-│                          ▼                                   │
+│                          ▼                                  │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │  CommandHandler                                      │    │
+│  │  CommandHandler                                     │    │
 │  │  - get_debug_output → debugger_plugin.get_entries() │    │
 │  └─────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
@@ -795,6 +805,193 @@ The debug capture system has two components:
 | `codot:pong` | Response to ping from editor |
 | `codot:screenshot` | Request screenshot from game |
 | `codot:screenshot_result` | Screenshot result from game |
+
+## InputMap Commands
+
+Manage input actions and key bindings programmatically:
+
+### godot_get_input_actions
+List all input actions defined in the project.
+
+```
+godot_get_input_actions(include_builtins=false)
+→ Returns: {
+    "actions": [
+        {"name": "move_left", "deadzone": 0.5, "event_count": 2},
+        {"name": "jump", "deadzone": 0.5, "event_count": 1}
+    ],
+    "count": 2
+}
+```
+
+### godot_get_input_action
+Get detailed information about a specific input action.
+
+```
+godot_get_input_action(action="jump")
+→ Returns: {
+    "action": "jump",
+    "exists": true,
+    "deadzone": 0.5,
+    "events": [
+        {"type": "key", "keycode": "SPACE", "modifiers": {"shift": false, "ctrl": false}}
+    ]
+}
+```
+
+### godot_add_input_action
+Add a new input action to the project.
+
+```
+godot_add_input_action(action="custom_action", deadzone=0.5)
+→ Returns: {"action": "custom_action", "added": true, "deadzone": 0.5}
+```
+
+### godot_remove_input_action
+Remove an input action from the project.
+
+```
+godot_remove_input_action(action="custom_action")
+→ Returns: {"action": "custom_action", "removed": true}
+```
+
+### godot_add_input_event_key
+Add a keyboard key binding to an action.
+
+```
+godot_add_input_event_key(action="jump", key="SPACE", shift=false, ctrl=false)
+→ Returns: {"action": "jump", "added": true, "key": "SPACE"}
+```
+
+### godot_add_input_event_mouse
+Add a mouse button binding to an action.
+
+```
+godot_add_input_event_mouse(action="fire", button=1)
+→ Returns: {"action": "fire", "added": true, "button": 1}
+```
+
+### godot_add_input_event_joypad_button
+Add a gamepad button binding to an action.
+
+```
+godot_add_input_event_joypad_button(action="jump", button=0, device=-1)
+→ Returns: {"action": "jump", "added": true, "button": 0}
+```
+
+### godot_add_input_event_joypad_axis
+Add a gamepad axis binding to an action.
+
+```
+godot_add_input_event_joypad_axis(action="move_right", axis=0, axis_value=1.0)
+→ Returns: {"action": "move_right", "added": true, "axis": 0}
+```
+
+### godot_clear_input_action_events
+Remove all bindings from an action.
+
+```
+godot_clear_input_action_events(action="jump")
+→ Returns: {"action": "jump", "cleared": true, "events_cleared": 2}
+```
+
+## Autoload Commands
+
+Manage autoload singletons programmatically:
+
+### godot_get_autoloads
+List all autoload singletons in the project.
+
+```
+godot_get_autoloads
+→ Returns: {
+    "autoloads": [
+        {"name": "GameManager", "path": "res://globals/game_manager.gd", "enabled": true, "order": 0},
+        {"name": "AudioManager", "path": "res://globals/audio_manager.gd", "enabled": true, "order": 1}
+    ],
+    "count": 2
+}
+```
+
+### godot_get_autoload
+Get detailed information about a specific autoload.
+
+```
+godot_get_autoload(name="GameManager")
+→ Returns: {
+    "name": "GameManager",
+    "exists": true,
+    "path": "res://globals/game_manager.gd",
+    "enabled": true,
+    "order": 0
+}
+```
+
+### godot_add_autoload
+Add a new autoload singleton.
+
+```
+godot_add_autoload(name="MyManager", path="res://globals/my_manager.gd")
+→ Returns: {"name": "MyManager", "added": true, "path": "res://globals/my_manager.gd"}
+```
+
+### godot_remove_autoload
+Remove an autoload singleton.
+
+```
+godot_remove_autoload(name="MyManager")
+→ Returns: {"name": "MyManager", "removed": true}
+```
+
+### godot_rename_autoload
+Rename an existing autoload singleton.
+
+```
+godot_rename_autoload(old_name="OldName", new_name="NewName")
+→ Returns: {"old_name": "OldName", "new_name": "NewName", "renamed": true}
+```
+
+### godot_set_autoload_path
+Change the script/scene path of an autoload.
+
+```
+godot_set_autoload_path(name="GameManager", path="res://globals/new_game_manager.gd")
+→ Returns: {"name": "GameManager", "updated": true, "new_path": "res://globals/new_game_manager.gd"}
+```
+
+### godot_reorder_autoloads
+Change the loading order of autoloads.
+
+```
+godot_reorder_autoloads(order=["AudioManager", "GameManager", "UIManager"])
+→ Returns: {"reordered": true, "new_order": ["AudioManager", "GameManager", "UIManager"]}
+```
+
+## Security Safeguards
+
+The Codot plugin includes security settings to protect against unintended file access:
+
+### Settings (Editor Settings → Plugin → Codot)
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `restrict_file_access_to_project` | `true` | Only allow file operations within `res://` and `user://` |
+| `allow_system_commands` | `false` | Allow execution of system commands (dangerous) |
+| `max_file_size_kb` | `1024` | Maximum file size for read/write operations (KB) |
+
+### Path Validation
+
+When `restrict_file_access_to_project` is enabled:
+- `res://` paths are always allowed
+- `user://` paths are always allowed  
+- Absolute paths are only allowed if within the project directory
+- Attempts to access files outside the project return `PATH_OUTSIDE_PROJECT` error
+
+### File Size Limits
+
+When reading or writing files:
+- Files larger than `max_file_size_kb` return `FILE_TOO_LARGE` error
+- Content larger than `max_file_size_kb` returns `CONTENT_TOO_LARGE` error
 
 ## Plugin Management Commands
 

@@ -33,6 +33,7 @@ var _duplicate_button: Button
 var _export_button: Button
 var _import_button: Button
 var _archived_toggle: Button
+var _wrapper_button: Button
 var _settings_button: Button
 var _reconnect_button: Button
 var _prompt_list: VBoxContainer
@@ -95,6 +96,7 @@ func _cache_node_references() -> void:
 	_export_button = %ExportButton
 	_import_button = %ImportButton
 	_archived_toggle = %ArchivedToggle
+	_wrapper_button = %WrapperButton
 	_settings_button = %SettingsButton
 	_reconnect_button = %ReconnectButton
 	_prompt_list = %PromptList
@@ -138,6 +140,7 @@ func _connect_signals() -> void:
 	_export_button.pressed.connect(_on_export_pressed)
 	_import_button.pressed.connect(_on_import_pressed)
 	_archived_toggle.toggled.connect(_on_archived_toggled)
+	_wrapper_button.pressed.connect(_on_wrapper_pressed)
 	_settings_button.pressed.connect(_on_settings_pressed)
 	_reconnect_button.pressed.connect(_on_reconnect_pressed)
 	_send_button.pressed.connect(_on_send_pressed)
@@ -184,17 +187,25 @@ func _process(_delta: float) -> void:
 			if _is_connected:
 				_update_status(false, "Connection closed")
 		WebSocketPeer.STATE_CLOSING:
-			_update_status_text("● Closing...", Color(0.8, 0.6, 0.2),
+			_update_status_text("● Closing...", Color(0.8, 0.6, 0.2, 0.6),
 				"Connection is closing...")
 		WebSocketPeer.STATE_CONNECTING:
-			_update_status_text("● Connecting...", Color(0.8, 0.8, 0.2), 
-				"Attempting to connect to VS Code Codot Bridge\n" +
-				"Port: %d\n" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT) +
-				"Attempt: #%d\n\n" % _connection_attempts +
-				"Make sure:\n" +
-				"1. VS Code is running\n" +
-				"2. Codot Bridge extension is installed\n" +
-				"3. Run 'Codot: Start Bridge Server' command")
+			# Check if user wants to see connecting animation or just static disconnected
+			if _get_setting("show_reconnecting_status", true):
+				_update_status_text("● Connecting...", Color(0.8, 0.8, 0.2, 0.6), 
+					"Attempting to connect to VS Code Codot Bridge\n" +
+					"Port: %d\n" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT) +
+					"Attempt: #%d\n\n" % _connection_attempts +
+					"Make sure:\n" +
+					"1. VS Code is running\n" +
+					"2. Codot Bridge extension is installed\n" +
+					"3. Run 'Codot: Start Bridge Server' command")
+			else:
+				# Static disconnected status when show_reconnecting_status is false
+				_update_status_text("● Disconnected", Color(0.5, 0.5, 0.5, 0.6), 
+					"Auto-reconnecting in background...\n" +
+					"Port: %d\n" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT) +
+					"Attempt: #%d" % _connection_attempts)
 
 
 func _process_incoming_messages() -> void:
@@ -244,7 +255,7 @@ func _update_status(connected: bool, reason: String = "") -> void:
 	_is_connected = connected
 	
 	if connected:
-		_update_status_text("● Connected", Color(0.2, 0.8, 0.2),
+		_update_status_text("● Connected", Color(0.2, 0.8, 0.2, 0.6),
 			"Connected to VS Code Copilot Bridge on port %d" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT))
 	else:
 		var tooltip := "Not connected to VS Code Copilot Bridge"
@@ -253,7 +264,7 @@ func _update_status(connected: bool, reason: String = "") -> void:
 		tooltip += "\nMake sure the Codot Bridge extension is running in VS Code"
 		if _connection_attempts > 0:
 			tooltip += "\nConnection attempts: %d" % _connection_attempts
-		_update_status_text("● Disconnected", Color(0.8, 0.2, 0.2), tooltip)
+		_update_status_text("● Disconnected", Color(0.8, 0.2, 0.2, 0.6), tooltip)
 	
 	_update_send_button_state()
 	connection_changed.emit(connected)
@@ -599,11 +610,25 @@ func send_prompt(prompt_id: String) -> bool:
 			return false
 	
 	# Now try to send
+	# Build the final content with pre/post prompt wrappers if enabled
+	var final_content: String = prompt.content
+	if _get_setting("wrap_prompts_with_prefix_suffix", true):
+		var pre_prompt: String = _get_setting("pre_prompt_message", "")
+		var post_prompt: String = _get_setting("post_prompt_message", "")
+		if pre_prompt or post_prompt:
+			var parts: Array[String] = []
+			if pre_prompt:
+				parts.append(pre_prompt)
+			parts.append(prompt.content)
+			if post_prompt:
+				parts.append(post_prompt)
+			final_content = "\n\n".join(parts)
+	
 	var message := {
 		"type": "prompt",
 		"prompt_id": prompt.id,
 		"title": prompt.title,
-		"content": prompt.content,
+		"content": final_content,
 		"timestamp": Time.get_datetime_string_from_system()
 	}
 	
@@ -738,9 +763,9 @@ func _refresh_prompt_list() -> void:
 	if empty_label:
 		empty_label.visible = prompts_to_show.is_empty()
 		if _showing_archived:
-			empty_label.text = "No archived prompts.\n\nPrompts are archived after sending."
+			empty_label.text = "[color=dimgray]No archived prompts.\n\nPrompts are archived after sending.[/color]"
 		else:
-			empty_label.text = "No prompts yet.\nClick '+ New' to create one."
+			empty_label.text = "[color=dimgray]No prompts yet.[/color]\n\n[color=dimgray]Click[/color]  [color=gray]+ New[/color]  [color=dimgray]to create one.[/color]"
 	
 	# Create prompt items
 	for prompt in prompts_to_show:
@@ -951,6 +976,83 @@ func _on_settings_pressed() -> void:
 		await get_tree().create_timer(SETTINGS_MESSAGE_DURATION).timeout
 		if not _is_dirty:
 			_show_auto_save_status("", Color(0.5, 0.5, 0.5))
+
+
+func _on_wrapper_pressed() -> void:
+	_show_wrapper_dialog()
+
+
+## Show dialog for editing pre/post prompt wrappers
+func _show_wrapper_dialog() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "Edit Prompt Wrappers"
+	dialog.size = Vector2(500, 450)
+	
+	var main_vbox := VBoxContainer.new()
+	main_vbox.custom_minimum_size = Vector2(480, 400)
+	dialog.add_child(main_vbox)
+	
+	# Enable/Disable toggle
+	var enable_hbox := HBoxContainer.new()
+	main_vbox.add_child(enable_hbox)
+	
+	var enable_check := CheckBox.new()
+	enable_check.text = "Enable prompt wrappers"
+	enable_check.button_pressed = _get_setting("wrap_prompts_with_prefix_suffix", true)
+	enable_hbox.add_child(enable_check)
+	
+	var enable_spacer := Control.new()
+	enable_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	enable_hbox.add_child(enable_spacer)
+	
+	main_vbox.add_child(HSeparator.new())
+	
+	# Pre-prompt section
+	var pre_label := Label.new()
+	pre_label.text = "Pre-Prompt (added before every prompt):"
+	main_vbox.add_child(pre_label)
+	
+	var pre_edit := TextEdit.new()
+	pre_edit.custom_minimum_size = Vector2(0, 120)
+	pre_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	pre_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	pre_edit.placeholder_text = "Enter text to add before every prompt...\n\nExample:\nYou are working on a Godot 4.x game project. Follow the coding conventions in AGENTS.md."
+	pre_edit.text = _get_setting("pre_prompt_message", "")
+	main_vbox.add_child(pre_edit)
+	
+	# Post-prompt section
+	var post_label := Label.new()
+	post_label.text = "Post-Prompt (added after every prompt):"
+	main_vbox.add_child(post_label)
+	
+	var post_edit := TextEdit.new()
+	post_edit.custom_minimum_size = Vector2(0, 120)
+	post_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	post_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	post_edit.placeholder_text = "Enter text to add after every prompt...\n\nExample:\nRemember to create GUT tests for any new functionality."
+	post_edit.text = _get_setting("post_prompt_message", "")
+	main_vbox.add_child(post_edit)
+	
+	# Help text
+	var help_label := Label.new()
+	help_label.text = "These wrappers will be added to all prompts when sent to VS Code."
+	help_label.add_theme_font_size_override("font_size", 11)
+	help_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	main_vbox.add_child(help_label)
+	
+	# Handle dialog confirmation
+	dialog.confirmed.connect(func():
+		CodotSettings.set_setting("wrap_prompts_with_prefix_suffix", enable_check.button_pressed)
+		CodotSettings.set_setting("pre_prompt_message", pre_edit.text)
+		CodotSettings.set_setting("post_prompt_message", post_edit.text)
+		_show_auto_save_status("Wrappers saved ✓", Color(0.2, 0.8, 0.2))
+		dialog.queue_free()
+	)
+	
+	dialog.canceled.connect(dialog.queue_free)
+	
+	add_child(dialog)
+	dialog.popup_centered()
 
 
 func _on_reconnect_pressed() -> void:

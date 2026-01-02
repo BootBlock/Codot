@@ -187,3 +187,89 @@ func _build_tree(node: Node, depth: int, max_depth: int) -> Dictionary:
 			result["children"].append(_build_tree(child, depth + 1, max_depth))
 	
 	return result
+
+
+# =============================================================================
+# PATH VALIDATION HELPERS (Security Safeguards)
+# =============================================================================
+
+## Validate that a path is within the project directory.
+## [br][br]
+## [param path]: The path to validate (res://, user://, or absolute).
+## [param cmd_id]: The command ID for error response.
+## [returns]: Empty dictionary if valid, error dictionary if invalid.
+func _validate_path_in_project(path: String, cmd_id: Variant) -> Dictionary:
+	# Check if file access restriction is enabled
+	if not _is_file_access_restricted():
+		return {}  # No restriction
+	
+	# Allow res:// paths (always within project)
+	if path.begins_with("res://"):
+		return {}
+	
+	# Allow user:// paths (Godot user data directory)
+	if path.begins_with("user://"):
+		return {}
+	
+	# For absolute paths, check if they're within the project directory
+	var project_path: String = ProjectSettings.globalize_path("res://")
+	var absolute_path: String = path
+	
+	# Normalise paths for comparison
+	project_path = project_path.replace("\\", "/").to_lower()
+	absolute_path = absolute_path.replace("\\", "/").to_lower()
+	
+	if not absolute_path.begins_with(project_path):
+		return _error(cmd_id, "PATH_OUTSIDE_PROJECT", 
+			"File access restricted to project directory. Path '%s' is outside project root." % path)
+	
+	return {}
+
+
+## Check if file access restriction is enabled in settings.
+func _is_file_access_restricted() -> bool:
+	var settings: EditorSettings = EditorInterface.get_editor_settings()
+	if settings == null:
+		return true  # Default to restricted if settings unavailable
+	return settings.get_setting("plugin/codot/restrict_file_access_to_project")
+
+
+## Check if system commands are allowed.
+func _are_system_commands_allowed() -> bool:
+	var settings: EditorSettings = EditorInterface.get_editor_settings()
+	if settings == null:
+		return false  # Default to not allowed if settings unavailable
+	return settings.get_setting("plugin/codot/allow_system_commands")
+
+
+## Get the maximum file size allowed for operations (in bytes).
+func _get_max_file_size() -> int:
+	var settings: EditorSettings = EditorInterface.get_editor_settings()
+	if settings == null:
+		return 1024 * 1024  # Default 1MB
+	var max_kb: int = settings.get_setting("plugin/codot/max_file_size_kb")
+	return max_kb * 1024
+
+
+## Validate file size before read/write operations.
+## [br][br]
+## [param path]: The file path to check.
+## [param cmd_id]: The command ID for error response.
+## [returns]: Empty dictionary if valid, error dictionary if file too large.
+func _validate_file_size(path: String, cmd_id: Variant) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}  # Let other code handle file not found
+	
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}  # Let other code handle access errors
+	
+	var file_size: int = file.get_length()
+	file.close()
+	
+	var max_size: int = _get_max_file_size()
+	if file_size > max_size:
+		return _error(cmd_id, "FILE_TOO_LARGE",
+			"File size (%d bytes) exceeds maximum allowed size (%d bytes)." % [file_size, max_size])
+	
+	return {}

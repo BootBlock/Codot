@@ -119,6 +119,24 @@ class CodebaseValidator:
             r'^\s*const\s+',
             r'DEFAULT_\w+\s*:?=',
         ]
+        
+        # Reserved keyword patterns
+        self.reserved_keyword_vars = [
+            (r'var\s+class_name\s*:?=', 'Variable name "class_name" is a reserved keyword'),
+            (r'var\s+extends\s*:?=', 'Variable name "extends" is a reserved keyword'),
+            (r'var\s+signal\s*:?=', 'Variable name "signal" is a reserved keyword'),
+            (r'var\s+class\s*:?=', 'Variable name "class" is a reserved keyword'),
+        ]
+        
+        # Potential await issues
+        self.await_patterns = [
+            (r'return\s+\w+\.cmd_\w+\([^)]+\)\s*$', 'Command may need await - check if it uses async operations'),
+        ]
+        
+        # Signal connection patterns
+        self.signal_patterns = [
+            (r'\.connect\([^,]+\)(?!\s*#)', 'Signal connect() without explicit bind - ensure this is intentional'),
+        ]
     
     def log(self, message: str) -> None:
         """Print verbose log message."""
@@ -259,6 +277,19 @@ class CodebaseValidator:
                 if not func_name.startswith('_') and not func_name.startswith('test_'):
                     self.add_violation(file_path, line_num, "MISSING_RETURN_TYPE",
                         f"Public function '{func_name}' missing return type annotation", severity="info")
+            
+            # Rule 8: Reserved keyword variable names
+            for pattern, msg in self.reserved_keyword_vars:
+                if re.search(pattern, line):
+                    self.add_violation(file_path, line_num, "RESERVED_KEYWORD", msg, severity="error")
+            
+            # Rule 10: Empty Dictionary literal for optional params
+            if re.search(r'params\.get\([^,]+\)\s*$', line):
+                if 'params.get("' in line or "params.get('" in line:
+                    # Check for missing default value
+                    if not re.search(r'params\.get\([^,]+,\s*[^)]+\)', line):
+                        self.add_violation(file_path, line_num, "MISSING_DEFAULT",
+                            "params.get() without default value may return null", severity="info")
     
     def validate_python_file(self, cached_file: CachedFile) -> None:
         """Validate a Python file for violations."""
@@ -417,17 +448,17 @@ class CodebaseValidator:
         infos = [v for v in self.violations if v.severity == "info"]
         
         if errors:
-            print(f"\n❌ ERRORS ({len(errors)}):")
+            print(f"\n[ERROR] ERRORS ({len(errors)}):")
             for v in errors:
                 print(f"  {v}")
         
         if warnings:
-            print(f"\n⚠️  WARNINGS ({len(warnings)}):")
+            print(f"\n[WARN]  WARNINGS ({len(warnings)}):")
             for v in warnings:
                 print(f"  {v}")
         
         if infos:
-            print(f"\nℹ️  INFO ({len(infos)}):")
+            print(f"\n[INFO]  INFO ({len(infos)}):")
             for v in infos:
                 print(f"  {v}")
         
