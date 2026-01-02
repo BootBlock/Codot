@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/codot/codot_panel.gd" id="1_panel"]
 
-[node name="CodotPanel" type="PanelContainer"]
+[node name="Codot" type="PanelContainer"]
 offset_right = 300.0
 offset_bottom = 600.0
 script = ExtResource("1_panel")
