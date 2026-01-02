@@ -594,15 +594,19 @@ The MCP server exposes 80+ tools. Key categories:
 - `godot_gut_run_script` - Run specific test file
 
 ### Input Simulation
-- `godot_simulate_key` - Keyboard input
+- `godot_simulate_key` - Keyboard key press/release
+- `godot_simulate_key_tap` - **Keyboard key tap (press+release)** - more reliable for game actions
 - `godot_simulate_mouse_button` - Mouse clicks
-- `godot_simulate_action` - Input actions
+- `godot_simulate_action` - Input action press/release
+- `godot_simulate_action_tap` - **Input action tap (press+release)** - more reliable for game actions
 
 **Note:** Input simulation commands automatically route through the debugger protocol when the game is running. This means:
 - When game is **running**: Input events are sent to the game process via `EngineDebugger` and executed by `CodotOutputCapture`
 - When game is **not running**: Input events are parsed in the editor context (useful for editor UI testing only)
 
 The response includes a `routed_to_game` field indicating which path was used.
+
+**Tip:** Use the `_tap` variants (`simulate_key_tap`, `simulate_action_tap`) when you want to trigger a complete button press. These send both press and release events with a configurable delay, which is more reliable for triggering game actions.
 
 ## Testing
 

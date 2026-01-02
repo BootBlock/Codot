@@ -92,6 +92,84 @@ func cmd_simulate_key(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	})
 
 
+## Simulate a keyboard key tap (press then release).
+## This is more reliable than simulate_key for triggering game actions.
+## [br][br]
+## [param params]:
+## - 'key' (String, required): Key name (e.g., "A", "SPACE", "ESCAPE").
+## - 'delay' (float, default 0.05): Delay between press and release in seconds.
+## - 'shift', 'ctrl', 'alt', 'meta' (bool): Modifier key states.
+func cmd_simulate_key_tap(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var keycode: String = params.get("key", "")
+	var delay: float = params.get("delay", 0.05)
+	
+	if keycode.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'key' parameter")
+	
+	var key_const = _key_name_to_code(keycode)
+	if key_const == KEY_NONE:
+		return _error(cmd_id, "INVALID_KEY", "Invalid key name: " + keycode)
+	
+	# Route to game if running
+	if _should_route_to_game():
+		# Send press
+		var press_params := {
+			"type": "key",
+			"keycode": key_const,
+			"pressed": true,
+			"echo": false,
+			"ctrl": params.get("ctrl", false),
+			"shift": params.get("shift", false),
+			"alt": params.get("alt", false),
+			"meta": params.get("meta", false),
+		}
+		_send_input_to_game(press_params)
+		
+		# Wait for delay
+		if delay > 0:
+			await tree.create_timer(delay).timeout
+		
+		# Send release
+		var release_params := press_params.duplicate()
+		release_params["pressed"] = false
+		var sent := _send_input_to_game(release_params)
+		
+		return _success(cmd_id, {
+			"simulated": true,
+			"routed_to_game": sent,
+			"type": "key_tap",
+			"key": keycode,
+			"delay": delay
+		})
+	
+	# Fallback: parse in editor
+	var event_press = InputEventKey.new()
+	event_press.keycode = key_const
+	event_press.physical_keycode = key_const
+	event_press.pressed = true
+	event_press.shift_pressed = params.get("shift", false)
+	event_press.ctrl_pressed = params.get("ctrl", false)
+	event_press.alt_pressed = params.get("alt", false)
+	event_press.meta_pressed = params.get("meta", false)
+	Input.parse_input_event(event_press)
+	
+	if delay > 0:
+		await tree.create_timer(delay).timeout
+	
+	var event_release = event_press.duplicate()
+	event_release.pressed = false
+	Input.parse_input_event(event_release)
+	
+	return _success(cmd_id, {
+		"simulated": true,
+		"routed_to_game": false,
+		"type": "key_tap",
+		"key": keycode,
+		"delay": delay,
+		"note": "Game not running - input parsed in editor context"
+	})
+
+
 ## Simulate a mouse button press or release.
 ## [br][br]
 ## [param params]:
@@ -253,6 +331,80 @@ func cmd_simulate_action(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		"action": action_name,
 		"pressed": pressed,
 		"strength": strength,
+		"note": "Game not running - input parsed in editor context"
+	})
+
+
+## Simulate an input action tap (press then release).
+## This is more reliable than simulate_action for triggering game actions.
+## [br][br]
+## [param params]:
+## - 'action' (String, required): Action name from InputMap.
+## - 'delay' (float, default 0.05): Delay between press and release in seconds.
+## - 'strength' (float, default 1.0): Action strength (0.0 to 1.0).
+func cmd_simulate_action_tap(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var action_name: String = params.get("action", "")
+	var delay: float = params.get("delay", 0.05)
+	var strength: float = params.get("strength", 1.0)
+	
+	if action_name.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'action' parameter")
+	
+	# Basic validation (game may have additional actions)
+	if not InputMap.has_action(action_name) and not _should_route_to_game():
+		return _error(cmd_id, "INVALID_ACTION", "Action not found: " + action_name)
+	
+	# Route to game if running
+	if _should_route_to_game():
+		# Send press
+		var press_params := {
+			"type": "action",
+			"action": action_name,
+			"pressed": true,
+			"strength": strength,
+		}
+		_send_input_to_game(press_params)
+		
+		# Wait for delay
+		if delay > 0:
+			await tree.create_timer(delay).timeout
+		
+		# Send release
+		var release_params := press_params.duplicate()
+		release_params["pressed"] = false
+		release_params["strength"] = 0.0
+		var sent := _send_input_to_game(release_params)
+		
+		return _success(cmd_id, {
+			"simulated": true,
+			"routed_to_game": sent,
+			"type": "action_tap",
+			"action": action_name,
+			"delay": delay
+		})
+	
+	# Fallback: parse in editor
+	var event_press = InputEventAction.new()
+	event_press.action = action_name
+	event_press.pressed = true
+	event_press.strength = strength
+	Input.parse_input_event(event_press)
+	
+	if delay > 0:
+		await tree.create_timer(delay).timeout
+	
+	var event_release = InputEventAction.new()
+	event_release.action = action_name
+	event_release.pressed = false
+	event_release.strength = 0.0
+	Input.parse_input_event(event_release)
+	
+	return _success(cmd_id, {
+		"simulated": true,
+		"routed_to_game": false,
+		"type": "action_tap",
+		"action": action_name,
+		"delay": delay,
 		"note": "Game not running - input parsed in editor context"
 	})
 

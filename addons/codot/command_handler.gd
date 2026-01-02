@@ -344,12 +344,16 @@ func handle_command(command: Dictionary) -> Dictionary:
 		# =================================================================
 		"simulate_key":
 			return _input.cmd_simulate_key(cmd_id, params)
+		"simulate_key_tap":
+			return await _input.cmd_simulate_key_tap(cmd_id, params)
 		"simulate_mouse_button":
 			return _input.cmd_simulate_mouse_button(cmd_id, params)
 		"simulate_mouse_motion":
 			return _input.cmd_simulate_mouse_motion(cmd_id, params)
 		"simulate_action":
 			return _input.cmd_simulate_action(cmd_id, params)
+		"simulate_action_tap":
+			return await _input.cmd_simulate_action_tap(cmd_id, params)
 		
 		# =================================================================
 		# GUT Testing (commands_gut.gd)

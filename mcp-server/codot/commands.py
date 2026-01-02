@@ -1488,6 +1488,45 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "simulate_key_tap": CommandDefinition(
+        description="Simulate a complete key tap (press then release) during game runtime. More reliable than simulate_key for triggering game actions.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "description": "Key name (e.g., 'W', 'SPACE', 'ENTER', 'UP', 'F1')",
+                },
+                "delay": {
+                    "type": "number",
+                    "description": "Delay between press and release in seconds",
+                    "default": 0.05,
+                },
+                "shift": {
+                    "type": "boolean",
+                    "description": "Shift modifier pressed",
+                    "default": False,
+                },
+                "ctrl": {
+                    "type": "boolean",
+                    "description": "Ctrl modifier pressed",
+                    "default": False,
+                },
+                "alt": {
+                    "type": "boolean",
+                    "description": "Alt modifier pressed",
+                    "default": False,
+                },
+                "meta": {
+                    "type": "boolean",
+                    "description": "Meta/Win/Cmd modifier pressed",
+                    "default": False,
+                },
+            },
+            "required": ["key"],
+        },
+    ),
+    
     "simulate_mouse_button": CommandDefinition(
         description="Simulate a mouse button press/release during game runtime",
         input_schema={
@@ -1571,6 +1610,30 @@ COMMANDS: dict[str, CommandDefinition] = {
                     "type": "boolean",
                     "description": "True for action pressed, False for released",
                     "default": True,
+                },
+                "strength": {
+                    "type": "number",
+                    "description": "Action strength (0.0 to 1.0), useful for analog inputs",
+                    "default": 1.0,
+                },
+            },
+            "required": ["action"],
+        },
+    ),
+    
+    "simulate_action_tap": CommandDefinition(
+        description="Simulate a complete input action tap (press then release). More reliable than simulate_action for triggering game actions.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Name of the input action (e.g., 'ui_accept', 'jump', 'move_left')",
+                },
+                "delay": {
+                    "type": "number",
+                    "description": "Delay between press and release in seconds",
+                    "default": 0.05,
                 },
                 "strength": {
                     "type": "number",
