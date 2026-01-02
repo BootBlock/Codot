@@ -79,6 +79,41 @@ class CodebaseValidator:
             (r'python\s+-c\s*["\'].*\\n.*["\']', 'Multi-line Python in -c flag (use script file instead)'),
             (r'python\s+-c\s*["\'].*\{[^}]*\}.*\{[^}]*\}.*["\']', 'Complex f-string in -c flag (escaping issues)'),
         ]
+        
+        # Async patterns that can cause race conditions
+        self.async_race_patterns = [
+            (r'_websocket\.get_available_packet_count\(\)', 'Direct packet reading may race with _process()'),
+        ]
+        
+        # Missing tooltip patterns
+        self.tooltip_patterns = [
+            (r'tooltip_text\s*=\s*["\']["\']', 'Empty tooltip_text (consider adding helpful tooltip)'),
+        ]
+        
+        # Signal connection safety patterns
+        self.signal_patterns = [
+            # Signal connected without checking if already connected
+            (r'\.connect\([^)]+\)(?!\s*#\s*safe)', 'Signal connection without is_connected check or #safe comment'),
+        ]
+        
+        # Error handling patterns
+        self.error_handling_patterns = [
+            # await without try/error handling nearby
+            (r'await\s+get_tree\(\)\.create_timer\([^)]+\)\.timeout(?!\s*#\s*no-check)', 
+             'Consider timeout handling for await timer patterns'),
+        ]
+        
+        # Hardcoded values that should be constants or settings
+        # Only flag assignments, not constant definitions (const lines are skipped)
+        self.hardcoded_patterns = [
+            (r'=\s*(6850|6851)\s*(?:#|$)', 'Hardcoded port number - consider using constant or setting'),
+        ]
+        
+        # Lines to exclude from hardcoded pattern check
+        self.hardcoded_exclude_patterns = [
+            r'^\s*const\s+',  # Constant definitions are fine
+            r'DEFAULT_\w+\s*:?=',  # Default constant assignments
+        ]
     
     def log(self, message: str) -> None:
         """Print verbose log message."""
@@ -144,6 +179,69 @@ class CodebaseValidator:
                     "Use _get_scene_root() without cmd_id after _require_scene() check",
                     severity="warning"
                 )
+            
+            # Rule 4: Check for async race condition patterns (outside of send_prompt)
+            if 'send_prompt' not in file_path.name:
+                for pattern, msg in self.async_race_patterns:
+                    if re.search(pattern, line):
+                        # Only warn if it's in a function that's not _process_incoming_messages
+                        self.add_violation(
+                            file_path, line_num, "ASYNC_RACE",
+                            f"{msg} - use flag-based communication instead",
+                            severity="info"
+                        )
+            
+            # Rule 5: Check for const naming that shadows global classes
+            shadow_match = re.match(r'^const\s+(Codot\w*)\s*=\s*preload\(', line)
+            if shadow_match:
+                const_name = shadow_match.group(1)
+                if not const_name.endswith('Ref') and not const_name.endswith('Class'):
+                    self.add_violation(
+                        file_path, line_num, "SHADOW_GLOBAL",
+                        f"Const '{const_name}' may shadow global class. Consider '{const_name}Ref'",
+                        severity="warning"
+                    )
+            
+            # Rule 6: Check for empty tooltip_text
+            for pattern, msg in self.tooltip_patterns:
+                if re.search(pattern, line):
+                    self.add_violation(
+                        file_path, line_num, "EMPTY_TOOLTIP",
+                        msg,
+                        severity="info"
+                    )
+            
+            # Rule 7: Check for hardcoded port numbers
+            for pattern, msg in self.hardcoded_patterns:
+                if re.search(pattern, line):
+                    # Skip if line has a comment explaining it
+                    if '#' in line and ('port' in line.lower() or 'default' in line.lower()):
+                        continue
+                    # Skip constant definitions and DEFAULT_ assignments
+                    skip = False
+                    for exclude_pattern in self.hardcoded_exclude_patterns:
+                        if re.search(exclude_pattern, line):
+                            skip = True
+                            break
+                    if skip:
+                        continue
+                    self.add_violation(
+                        file_path, line_num, "HARDCODED_VALUE",
+                        msg,
+                        severity="info"
+                    )
+            
+            # Rule 8: Check for missing return type on public functions
+            public_func_match = re.match(r'^func\s+([a-z_]\w*)\s*\([^)]*\)\s*(?:->|:)', line)
+            if public_func_match and '->' not in line:
+                func_name = public_func_match.group(1)
+                # Skip private functions (start with _) and test functions
+                if not func_name.startswith('_') and not func_name.startswith('test_'):
+                    self.add_violation(
+                        file_path, line_num, "MISSING_RETURN_TYPE",
+                        f"Public function '{func_name}' missing return type annotation",
+                        severity="info"
+                    )
     
     def validate_python_file(self, file_path: Path) -> None:
         """Validate a Python file for violations."""

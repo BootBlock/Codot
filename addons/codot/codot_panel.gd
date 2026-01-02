@@ -69,6 +69,12 @@ var _updating_editor: bool = false
 ## Track connection attempts for debugging
 var _connection_attempts: int = 0
 var _last_connection_error: String = ""
+
+## Track pending ack for send operation
+var _waiting_for_ack: bool = false
+var _pending_ack_prompt_id: String = ""
+var _ack_received: bool = false
+var _ack_error: String = ""
 #endregion
 
 
@@ -104,14 +110,14 @@ func _cache_node_references() -> void:
 func _setup_timers() -> void:
 	# Reconnect timer
 	_reconnect_timer = Timer.new()
-	_reconnect_timer.wait_time = RECONNECT_INTERVAL
+	_reconnect_timer.wait_time = _get_setting("reconnect_interval", RECONNECT_INTERVAL)
 	_reconnect_timer.one_shot = false
 	_reconnect_timer.timeout.connect(_try_connect)
 	add_child(_reconnect_timer)
 	
-	# Auto-save timer
+	# Auto-save timer - use setting for wait time
 	_auto_save_timer = Timer.new()
-	_auto_save_timer.wait_time = AUTO_SAVE_DELAY
+	_auto_save_timer.wait_time = _get_setting("auto_save_delay", AUTO_SAVE_DELAY)
 	_auto_save_timer.one_shot = true
 	_auto_save_timer.timeout.connect(_perform_auto_save)
 	add_child(_auto_save_timer)
@@ -169,13 +175,17 @@ func _process(_delta: float) -> void:
 			if _is_connected:
 				_update_status(false, "Connection closed")
 		WebSocketPeer.STATE_CLOSING:
-			pass
+			_update_status_text("● Closing...", Color(0.8, 0.6, 0.2),
+				"Connection is closing...")
 		WebSocketPeer.STATE_CONNECTING:
 			_update_status_text("● Connecting...", Color(0.8, 0.8, 0.2), 
-				"Attempting to connect to VS Code on port %d\nAttempt #%d" % [
-					_get_setting("vscode_port", DEFAULT_VSCODE_PORT),
-					_connection_attempts
-				])
+				"Attempting to connect to VS Code Codot Bridge\n" +
+				"Port: %d\n" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT) +
+				"Attempt: #%d\n\n" % _connection_attempts +
+				"Make sure:\n" +
+				"1. VS Code is running\n" +
+				"2. Codot Bridge extension is installed\n" +
+				"3. Run 'Codot: Start Bridge Server' command")
 
 
 func _process_incoming_messages() -> void:
@@ -192,6 +202,21 @@ func _handle_message(text: String) -> void:
 	
 	var data: Dictionary = json.get_data()
 	var msg_type: String = data.get("type", "")
+	var success: bool = data.get("success", false)
+	
+	# Handle ack messages when waiting for confirmation
+	if _waiting_for_ack:
+		if msg_type == "ack" or success == true:
+			_ack_received = true
+			_ack_error = ""
+			return
+		elif msg_type == "error" or data.get("success") == false:
+			_ack_received = true
+			_ack_error = data.get("message", data.get("error", "Unknown error"))
+			return
+		# Ignore "connected" messages while waiting
+		elif msg_type == "connected":
+			return
 	
 	match msg_type:
 		"prompt_accepted":
@@ -202,8 +227,8 @@ func _handle_message(text: String) -> void:
 		"prompt_rejected":
 			push_warning("Codot: Prompt rejected by VS Code: %s" % data.get("reason", "unknown"))
 			_show_auto_save_status("Rejected", Color(0.8, 0.2, 0.2))
-		"status":
-			pass
+		"status", "connected", "ack":
+			pass  # Silently ignore status/connection messages outside of send
 
 
 func _update_status(connected: bool, reason: String = "") -> void:
@@ -574,9 +599,17 @@ func send_prompt(prompt_id: String) -> bool:
 	}
 	
 	var json_str := JSON.stringify(message)
+	
+	# Set up ack tracking before sending
+	_waiting_for_ack = true
+	_pending_ack_prompt_id = prompt.id
+	_ack_received = false
+	_ack_error = ""
+	
 	var err := _websocket.send_text(json_str)
 	
 	if err != OK:
+		_waiting_for_ack = false
 		var error_msg := "Send failed: %s" % error_string(err)
 		push_error("Codot: %s" % error_msg)
 		_show_auto_save_status("Send failed", Color(0.8, 0.2, 0.2))
@@ -584,37 +617,18 @@ func send_prompt(prompt_id: String) -> bool:
 	
 	_show_auto_save_status("Waiting for confirmation...", Color(0.8, 0.8, 0.2))
 	
-	# Wait for VS Code to acknowledge receipt
+	# Wait for VS Code to acknowledge receipt (handled by _process/_handle_message)
 	var ack_timeout := 5.0
 	var ack_elapsed := 0.0
-	var confirmed := false
 	
 	while ack_elapsed < ack_timeout:
-		_websocket.poll()
-		
-		# Check for incoming acknowledgment
-		while _websocket.get_available_packet_count() > 0:
-			var packet := _websocket.get_packet()
-			var response_text := packet.get_string_from_utf8()
-			
-			var json := JSON.new()
-			if json.parse(response_text) == OK:
-				var response = json.get_data()
-				if response is Dictionary:
-					if response.get("type") == "ack" or response.get("success") == true:
-						confirmed = true
-						break
-					elif response.get("type") == "error" or response.get("success") == false:
-						var error_msg: String = response.get("error", "Unknown error from VS Code")
-						push_error("Codot: VS Code rejected prompt: %s" % error_msg)
-						_show_auto_save_status("Rejected: %s" % error_msg, Color(0.8, 0.2, 0.2))
-						return false
-		
-		if confirmed:
+		# The _process() function will poll and _handle_message will set _ack_received
+		if _ack_received:
 			break
 		
 		# Check if connection was lost
 		if _websocket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+			_waiting_for_ack = false
 			push_error("Codot: Connection lost while waiting for acknowledgment")
 			_show_auto_save_status("Connection lost", Color(0.8, 0.2, 0.2))
 			_is_connected = false
@@ -624,10 +638,18 @@ func send_prompt(prompt_id: String) -> bool:
 		await get_tree().create_timer(0.1).timeout
 		ack_elapsed += 0.1
 	
-	if not confirmed:
+	_waiting_for_ack = false
+	
+	if not _ack_received:
 		push_warning("Codot: No acknowledgment received from VS Code (sent but unconfirmed)")
 		_show_auto_save_status("Sent (unconfirmed)", Color(0.8, 0.6, 0.2))
 		# Don't archive if we didn't get confirmation
+		return false
+	
+	# Check if there was an error in the ack
+	if _ack_error != "":
+		push_error("Codot: VS Code rejected prompt: %s" % _ack_error)
+		_show_auto_save_status("Rejected: %s" % _ack_error, Color(0.8, 0.2, 0.2))
 		return false
 	
 	# Confirmed! Now safe to archive
@@ -767,6 +789,12 @@ func _create_prompt_item(prompt: Dictionary) -> Control:
 		restore_btn.tooltip_text = "Restore this prompt to active prompts"
 		restore_btn.pressed.connect(_on_restore_prompt.bind(prompt.id))
 		hbox.add_child(restore_btn)
+		
+		var delete_btn := Button.new()
+		delete_btn.text = "🗑"
+		delete_btn.tooltip_text = "Permanently delete this archived prompt"
+		delete_btn.pressed.connect(_on_delete_archived_prompt.bind(prompt.id))
+		hbox.add_child(delete_btn)
 	
 	# Make the item clickable
 	item.gui_input.connect(_on_prompt_item_input.bind(prompt.id))
@@ -948,6 +976,12 @@ func _on_prompt_item_input(event: InputEvent, prompt_id: String) -> void:
 
 func _on_restore_prompt(prompt_id: String) -> void:
 	restore_prompt(prompt_id)
+
+
+func _on_delete_archived_prompt(prompt_id: String) -> void:
+	# Permanently delete an archived prompt
+	delete_prompt(prompt_id)
+	_show_auto_save_status("Deleted", Color(0.8, 0.4, 0.2))
 
 
 func _input(event: InputEvent) -> void:

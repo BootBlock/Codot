@@ -232,6 +232,62 @@ self.websocket.open  # AttributeError in v15+
 self.websocket.state.name == "OPEN"
 ```
 
+#### 6. WebSocket Race Conditions in GDScript
+
+When using WebSocket with `_process()` polling, **never read packets directly** in async functions:
+
+```gdscript
+# ❌ BAD - Race condition with _process() consuming packets
+func send_and_wait() -> bool:
+    _websocket.send_text(message)
+    while timeout:
+        _websocket.poll()
+        # This competes with _process() for packets!
+        while _websocket.get_available_packet_count() > 0:
+            var packet = _websocket.get_packet()  # Might miss messages!
+            
+# ✅ GOOD - Use flag-based communication
+var _waiting_for_ack: bool = false
+var _ack_received: bool = false
+
+func send_and_wait() -> bool:
+    _waiting_for_ack = true
+    _ack_received = false
+    _websocket.send_text(message)
+    while timeout and not _ack_received:
+        await get_tree().create_timer(0.1).timeout
+    _waiting_for_ack = false
+    return _ack_received
+
+func _handle_message(text: String) -> void:
+    var data = parse_json(text)
+    if _waiting_for_ack and data.type == "ack":
+        _ack_received = true
+        return
+```
+
+**Why:** The `_process()` function runs every frame and consumes packets via `_process_incoming_messages()`. 
+Any other code trying to read packets will race with it and miss messages.
+
+#### 7. VS Code Extension Must Send Acknowledgments
+
+When the VS Code Codot Bridge receives a prompt, it **MUST** send an acknowledgment:
+
+```typescript
+// In extension.ts handlePrompt():
+ws.send(JSON.stringify({ 
+    type: "ack",
+    success: true,
+    message: "Prompt received",
+    prompt_id: message.prompt_id
+}));
+```
+
+The Godot panel waits for this ack before archiving prompts. Without it:
+- Prompt shows "Sent (unconfirmed)"
+- Prompt is NOT archived
+- User sees warning in Output
+
 ### Robust Script Generation Guidelines
 
 When generating scripts that interact with Godot:
@@ -275,6 +331,84 @@ This checks for:
 - Command signature consistency
 - Missing command registrations
 - Python/GDScript cross-reference issues
+- Invalid UID references
+- Async race condition patterns
+- Const names that shadow global classes
+
+## VS Code Codot Bridge Extension
+
+The VS Code extension (`vscode-extension/`) provides a WebSocket server that receives prompts from Godot.
+
+### Starting the Bridge
+
+The extension auto-starts on VS Code startup (if `codot-bridge.autoStart` is true). Manual control:
+- **Start**: Command Palette → "Codot: Start Bridge Server"
+- **Stop**: Command Palette → "Codot: Stop Bridge Server"
+- **Status**: Command Palette → "Codot: Show Bridge Status"
+
+### Message Format (Godot → VS Code)
+
+```json
+{
+    "type": "prompt",
+    "prompt_id": "unique-id",
+    "title": "Prompt Title",
+    "content": "The actual prompt content...",
+    "timestamp": "2026-01-02T12:00:00"
+}
+```
+
+### Response Format (VS Code → Godot)
+
+```json
+{
+    "type": "ack",
+    "success": true,
+    "message": "Prompt sent to Copilot Chat",
+    "prompt_id": "unique-id"
+}
+```
+
+### Rebuilding the Extension
+
+```bash
+cd vscode-extension
+npm run compile
+code --install-extension codot-bridge-0.1.0.vsix --force
+# Then reload VS Code window
+```
+
+## Codot Panel (Prompt Management)
+
+The Codot panel (`addons/codot/codot_panel.gd` + `.tscn`) provides a UI for managing prompts.
+
+### Features
+- Create, edit, delete, duplicate prompts
+- Auto-save with dirty flag (1.5s delay)
+- Export/Import prompts as JSON
+- Send to VS Code AI with confirmation
+- Archive sent prompts
+- Connection status with tooltips
+
+### Key State Variables
+
+```gdscript
+var _waiting_for_ack: bool        # True while waiting for VS Code response
+var _ack_received: bool           # Set by _handle_message when ack arrives
+var _ack_error: String            # Error message if ack indicates failure
+var _is_connected: bool           # WebSocket connection status
+var _connection_attempts: int     # Number of connection attempts
+```
+
+### Send Flow
+
+1. User clicks "Send to AI" button
+2. `send_prompt()` sets `_waiting_for_ack = true`
+3. Message sent via WebSocket
+4. `_process()` continues polling, `_handle_message()` checks for ack
+5. When ack received, `_ack_received = true`
+6. `send_prompt()` sees flag, archives prompt if enabled
+7. Status shows "Sent ✓"
 
 ## File Structure Reference
 
