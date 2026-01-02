@@ -11,7 +11,6 @@ config_version=5
 [application]
 
 config/name="Codot"
-run/main_scene="uid://dkucww0w1dxq7"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -21,7 +20,7 @@ CodotOutputCapture="*res://addons/codot/output_capture.gd"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/codot/plugin.cfg", "res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/gut/plugin.cfg")
 
 [physics]
 

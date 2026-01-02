@@ -37,9 +37,8 @@ func _enter_tree() -> void:
 	
 	# Create command handler and inject dependencies
 	_handler = preload("res://addons/codot/command_handler.gd").new()
-	_handler.set_editor_interface(EditorInterface)
-	_handler.set_editor_plugin(self)
-	_handler.set_debugger_plugin(_debugger_plugin)
+	_handler.editor_interface = EditorInterface
+	_handler.debugger_plugin = _debugger_plugin
 	add_child(_handler)
 	
 	# Connect WebSocket events
