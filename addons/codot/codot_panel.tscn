@@ -1,15 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://codot_panel"]
+[gd_scene load_steps=2 format=3 uid="uid://bv8fkr2xm4qc1"]
 
-[ext_resource type="Script" path="res://addons/codot/codot_panel.gd" id="1_script"]
+[ext_resource type="Script" path="res://addons/codot/codot_panel.gd" id="1_panel"]
 
 [node name="CodotPanel" type="PanelContainer"]
 offset_right = 300.0
 offset_bottom = 600.0
-script = ExtResource("1_script")
+script = ExtResource("1_panel")
 
 [node name="MainVBox" type="VBoxContainer" parent="."]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
 [node name="Header" type="HBoxContainer" parent="MainVBox"]
 layout_mode = 2
@@ -26,8 +26,9 @@ size_flags_horizontal = 3
 [node name="StatusIndicator" type="Label" parent="MainVBox/Header"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.2, 0.2, 1)
-text = "● Disconnected"
+tooltip_text = "Connection status to VS Code Copilot Bridge"
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "● Checking..."
 
 [node name="HeaderSeparator" type="HSeparator" parent="MainVBox"]
 layout_mode = 2
@@ -39,24 +40,34 @@ theme_override_constants/separation = 4
 [node name="NewPromptButton" type="Button" parent="MainVBox/Toolbar"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Create a new prompt"
+tooltip_text = "Create a new prompt (Ctrl+N)"
 text = "+ New"
 
-[node name="ArchiveToggle" type="Button" parent="MainVBox/Toolbar"]
+[node name="DuplicateButton" type="Button" parent="MainVBox/Toolbar"]
 unique_name_in_owner = true
 layout_mode = 2
-toggle_mode = true
-tooltip_text = "Toggle archived prompts view"
-text = "Archive"
+disabled = true
+tooltip_text = "Duplicate the selected prompt"
+text = "⧉"
 
 [node name="ToolbarSpacer" type="Control" parent="MainVBox/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="ArchivedToggle" type="Button" parent="MainVBox/Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+tooltip_text = "Show archived prompts"
+text = "📦 Archived"
+
+[node name="ToolbarSeparator" type="VSeparator" parent="MainVBox/Toolbar"]
+layout_mode = 2
+
 [node name="SettingsButton" type="Button" parent="MainVBox/Toolbar"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Open Codot settings"
+tooltip_text = "Open Codot settings in Editor Settings"
 text = "⚙"
 
 [node name="ReconnectButton" type="Button" parent="MainVBox/Toolbar"]
@@ -75,12 +86,13 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 4
 
 [node name="EmptyLabel" type="Label" parent="MainVBox/PromptListContainer/PromptList"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
-text = "No prompts yet. Click '+ New' to create one."
+text = "No prompts yet.
+Click '+ New' to create one."
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
@@ -92,6 +104,7 @@ layout_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 6
 
 [node name="EditorHeader" type="HBoxContainer" parent="MainVBox/EditorSection"]
 layout_mode = 2
@@ -100,11 +113,13 @@ layout_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Prompt title..."
+editable = false
+placeholder_text = "Select a prompt..."
 
 [node name="DeleteButton" type="Button" parent="MainVBox/EditorSection/EditorHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+disabled = true
 tooltip_text = "Delete this prompt"
 text = "🗑"
 
@@ -112,31 +127,37 @@ text = "🗑"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 120)
-placeholder_text = "Enter your prompt here...
+custom_minimum_size = Vector2(0, 150)
+editable = false
+placeholder_text = "Select a prompt to edit...
 
-Example prompts:
-• Create a player character with movement controls
-• Add a health system to the existing Player node
-• Fix the collision detection in my platformer"
+Tips:
+• Use '+ New' to create a prompt
+• Click a prompt in the list to select it
+• Changes are saved automatically"
 wrap_mode = 1
 
 [node name="ActionRow" type="HBoxContainer" parent="MainVBox/EditorSection"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SaveButton" type="Button" parent="MainVBox/EditorSection/ActionRow"]
+[node name="AutoSaveIndicator" type="Label" parent="MainVBox/EditorSection/ActionRow"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 11
+text = ""
+
+[node name="ActionSpacer" type="Control" parent="MainVBox/EditorSection/ActionRow"]
+layout_mode = 2
 size_flags_horizontal = 3
-text = "Save"
 
 [node name="SendButton" type="Button" parent="MainVBox/EditorSection/ActionRow"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
 disabled = true
-text = "Send to AI"
+tooltip_text = "Send prompt to VS Code AI (Ctrl+Enter)"
+text = "Send to AI ➤"
 
 [node name="FooterSeparator" type="HSeparator" parent="MainVBox"]
 layout_mode = 2

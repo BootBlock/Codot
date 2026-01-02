@@ -1,7 +1,7 @@
 ## Codot Prompt Management Panel
 ## [br][br]
 ## Manages multiple prompts that can be edited and sent to VS Code AI assistants.
-## Prompts can be saved, archived after sending, and restored from archive.
+## Features auto-save, archiving, and real-time status updates.
 @tool
 extends PanelContainer
 
@@ -11,33 +11,42 @@ signal prompt_sent(prompt_data: Dictionary)
 ## Emitted when connection status changes
 signal connection_changed(connected: bool)
 
+## Emitted when settings button is pressed
+signal settings_requested
+
+## Emitted when send to AI is requested (for external connection via main plugin)
+signal send_to_ai_requested(title: String, body: String)
+
 #region Constants
 const SETTINGS_PREFIX := "plugin/codot/"
 const SAVE_FILE_PATH := "user://codot_prompts.json"
 const DEFAULT_VSCODE_PORT := 6851
 const RECONNECT_INTERVAL := 5.0
+const AUTO_SAVE_DELAY := 1.5  # Seconds after typing stops before auto-save
 #endregion
 
 #region Node References (set in _ready via unique names)
 var _status_indicator: Label
 var _new_prompt_button: Button
-var _archive_toggle: Button
+var _duplicate_button: Button
+var _archived_toggle: Button
 var _settings_button: Button
 var _reconnect_button: Button
 var _prompt_list: VBoxContainer
 var _editor_section: VBoxContainer
 var _prompt_title_edit: LineEdit
 var _prompt_text_edit: TextEdit
-var _save_button: Button
 var _send_button: Button
 var _delete_button: Button
 var _prompt_count_label: Label
+var _auto_save_indicator: Label
 #endregion
 
 #region State Variables
 var _websocket: WebSocketPeer
 var _is_connected: bool = false
 var _reconnect_timer: Timer
+var _auto_save_timer: Timer
 
 ## Array of prompt dictionaries: {id, title, content, created_at, archived}
 var _prompts: Array[Dictionary] = []
@@ -47,54 +56,72 @@ var _selected_prompt_id: String = ""
 
 ## Whether showing archived prompts
 var _showing_archived: bool = false
+
+## Dirty flag for auto-save
+var _is_dirty: bool = false
+
+## Track if we're programmatically setting text (to avoid triggering auto-save)
+var _updating_editor: bool = false
 #endregion
 
 
 func _ready() -> void:
 	_cache_node_references()
+	_setup_timers()
 	_connect_signals()
 	_setup_websocket()
 	_load_prompts()
 	_update_ui()
+	_update_editor_enabled_state()
 
 
 func _cache_node_references() -> void:
 	_status_indicator = %StatusIndicator
 	_new_prompt_button = %NewPromptButton
-	_archive_toggle = %ArchiveToggle
+	_duplicate_button = %DuplicateButton
+	_archived_toggle = %ArchivedToggle
 	_settings_button = %SettingsButton
 	_reconnect_button = %ReconnectButton
 	_prompt_list = %PromptList
 	_editor_section = %EditorSection
 	_prompt_title_edit = %PromptTitleEdit
 	_prompt_text_edit = %PromptTextEdit
-	_save_button = %SaveButton
 	_send_button = %SendButton
 	_delete_button = %DeleteButton
 	_prompt_count_label = %PromptCountLabel
+	_auto_save_indicator = %AutoSaveIndicator
 
 
-func _connect_signals() -> void:
-	_new_prompt_button.pressed.connect(_on_new_prompt_pressed)
-	_archive_toggle.toggled.connect(_on_archive_toggled)
-	_settings_button.pressed.connect(_on_settings_pressed)
-	_reconnect_button.pressed.connect(_on_reconnect_pressed)
-	_save_button.pressed.connect(_on_save_pressed)
-	_send_button.pressed.connect(_on_send_pressed)
-	_delete_button.pressed.connect(_on_delete_pressed)
-	_prompt_title_edit.text_changed.connect(_on_editor_changed)
-	_prompt_text_edit.text_changed.connect(_on_editor_changed)
-
-
-func _setup_websocket() -> void:
-	_websocket = WebSocketPeer.new()
-	
+func _setup_timers() -> void:
+	# Reconnect timer
 	_reconnect_timer = Timer.new()
 	_reconnect_timer.wait_time = RECONNECT_INTERVAL
 	_reconnect_timer.one_shot = false
 	_reconnect_timer.timeout.connect(_try_connect)
 	add_child(_reconnect_timer)
 	
+	# Auto-save timer
+	_auto_save_timer = Timer.new()
+	_auto_save_timer.wait_time = AUTO_SAVE_DELAY
+	_auto_save_timer.one_shot = true
+	_auto_save_timer.timeout.connect(_perform_auto_save)
+	add_child(_auto_save_timer)
+
+
+func _connect_signals() -> void:
+	_new_prompt_button.pressed.connect(_on_new_prompt_pressed)
+	_duplicate_button.pressed.connect(_on_duplicate_pressed)
+	_archived_toggle.toggled.connect(_on_archived_toggled)
+	_settings_button.pressed.connect(_on_settings_pressed)
+	_reconnect_button.pressed.connect(_on_reconnect_pressed)
+	_send_button.pressed.connect(_on_send_pressed)
+	_delete_button.pressed.connect(_on_delete_pressed)
+	_prompt_title_edit.text_changed.connect(_on_title_changed)
+	_prompt_text_edit.text_changed.connect(_on_content_changed)
+
+
+func _setup_websocket() -> void:
+	_websocket = WebSocketPeer.new()
 	_try_connect()
 	_reconnect_timer.start()
 
@@ -103,12 +130,12 @@ func _try_connect() -> void:
 	if _is_connected:
 		return
 	
-	var port := _get_setting("vscode_port", DEFAULT_VSCODE_PORT)
+	var port: int = _get_setting("vscode_port", DEFAULT_VSCODE_PORT)
 	var url := "ws://127.0.0.1:%d" % port
 	
 	var err := _websocket.connect_to_url(url)
 	if err != OK:
-		_update_status(false)
+		_update_status(false, "Connection failed")
 
 
 func _process(_delta: float) -> void:
@@ -125,11 +152,12 @@ func _process(_delta: float) -> void:
 			_process_incoming_messages()
 		WebSocketPeer.STATE_CLOSED:
 			if _is_connected:
-				_update_status(false)
+				_update_status(false, "Connection closed")
 		WebSocketPeer.STATE_CLOSING:
 			pass
 		WebSocketPeer.STATE_CONNECTING:
-			pass
+			_update_status_text("● Connecting...", Color(0.8, 0.8, 0.2), 
+				"Attempting to connect to VS Code on port %d" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT))
 
 
 func _process_incoming_messages() -> void:
@@ -149,37 +177,133 @@ func _handle_message(text: String) -> void:
 	
 	match msg_type:
 		"prompt_accepted":
-			# VS Code acknowledged the prompt - archive it
 			var prompt_id: String = data.get("prompt_id", "")
 			if prompt_id and _get_setting("auto_archive_on_send", true):
 				_archive_prompt(prompt_id)
+			_show_auto_save_status("Sent ✓", Color(0.2, 0.8, 0.2))
 		"prompt_rejected":
-			# VS Code rejected the prompt
 			push_warning("Codot: Prompt rejected by VS Code: %s" % data.get("reason", "unknown"))
+			_show_auto_save_status("Rejected", Color(0.8, 0.2, 0.2))
 		"status":
-			# Status update from VS Code
 			pass
 
 
-func _update_status(connected: bool) -> void:
+func _update_status(connected: bool, reason: String = "") -> void:
 	_is_connected = connected
 	
-	if _status_indicator:
-		if connected:
-			_status_indicator.text = "● Connected"
-			_status_indicator.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
-		else:
-			_status_indicator.text = "● Disconnected"
-			_status_indicator.add_theme_color_override("font_color", Color(0.8, 0.2, 0.2))
+	if connected:
+		_update_status_text("● Connected", Color(0.2, 0.8, 0.2),
+			"Connected to VS Code Copilot Bridge on port %d" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT))
+	else:
+		var tooltip := "Not connected to VS Code Copilot Bridge"
+		if reason:
+			tooltip += "\n" + reason
+		tooltip += "\nMake sure the Codot Bridge extension is running in VS Code"
+		_update_status_text("● Disconnected", Color(0.8, 0.2, 0.2), tooltip)
 	
 	_update_send_button_state()
 	connection_changed.emit(connected)
 
 
+func _update_status_text(text: String, color: Color, tooltip: String) -> void:
+	if _status_indicator:
+		_status_indicator.text = text
+		_status_indicator.add_theme_color_override("font_color", color)
+		_status_indicator.tooltip_text = tooltip
+
+
 func _update_send_button_state() -> void:
 	if _send_button:
 		var has_content := _prompt_text_edit and _prompt_text_edit.text.strip_edges().length() > 0
-		_send_button.disabled = not (_is_connected and has_content and _selected_prompt_id != "")
+		var has_selection := _selected_prompt_id != ""
+		_send_button.disabled = not (_is_connected and has_content and has_selection)
+		
+		if not _is_connected:
+			_send_button.tooltip_text = "Not connected to VS Code"
+		elif not has_selection:
+			_send_button.tooltip_text = "Select a prompt first"
+		elif not has_content:
+			_send_button.tooltip_text = "Prompt content is empty"
+		else:
+			_send_button.tooltip_text = "Send prompt to VS Code AI (Ctrl+Enter)"
+
+
+func _update_editor_enabled_state() -> void:
+	var has_selection := _selected_prompt_id != ""
+	
+	if _prompt_title_edit:
+		_prompt_title_edit.editable = has_selection
+		_prompt_title_edit.placeholder_text = "Prompt title..." if has_selection else "Select a prompt..."
+	
+	if _prompt_text_edit:
+		_prompt_text_edit.editable = has_selection
+		if not has_selection:
+			_prompt_text_edit.placeholder_text = "Select a prompt to edit...\n\nTips:\n• Use '+ New' to create a prompt\n• Click a prompt in the list to select it\n• Changes are saved automatically"
+		else:
+			_prompt_text_edit.placeholder_text = "Enter your prompt here..."
+	
+	if _delete_button:
+		_delete_button.disabled = not has_selection
+	
+	if _duplicate_button:
+		_duplicate_button.disabled = not has_selection
+
+
+#region Auto-Save System
+
+func _on_title_changed(_new_text: String) -> void:
+	if _updating_editor:
+		return
+	_mark_dirty()
+
+
+func _on_content_changed() -> void:
+	if _updating_editor:
+		return
+	_mark_dirty()
+	_update_send_button_state()
+
+
+func _mark_dirty() -> void:
+	if _selected_prompt_id == "":
+		return
+	
+	_is_dirty = true
+	_show_auto_save_status("Unsaved...", Color(0.8, 0.8, 0.2))
+	_auto_save_timer.start()
+
+
+func _perform_auto_save() -> void:
+	if not _is_dirty or _selected_prompt_id == "":
+		return
+	
+	var title := _prompt_title_edit.text.strip_edges()
+	var content := _prompt_text_edit.text
+	
+	if title.is_empty():
+		title = "Untitled Prompt"
+	
+	if update_prompt(_selected_prompt_id, title, content):
+		_is_dirty = false
+		_show_auto_save_status("Saved ✓", Color(0.5, 0.5, 0.5))
+		# Clear the indicator after a moment
+		await get_tree().create_timer(2.0).timeout
+		if not _is_dirty:
+			_show_auto_save_status("", Color(0.5, 0.5, 0.5))
+
+
+func _show_auto_save_status(text: String, color: Color) -> void:
+	if _auto_save_indicator:
+		_auto_save_indicator.text = text
+		_auto_save_indicator.add_theme_color_override("font_color", color)
+
+
+func _save_if_dirty() -> void:
+	if _is_dirty and _selected_prompt_id != "":
+		_auto_save_timer.stop()
+		_perform_auto_save()
+
+#endregion
 
 
 #region Prompt Management
@@ -198,6 +322,14 @@ func create_prompt(title: String = "", content: String = "") -> String:
 	_refresh_prompt_list()
 	_select_prompt(prompt_id)
 	return prompt_id
+
+
+func duplicate_prompt(prompt_id: String) -> String:
+	var original := get_prompt(prompt_id)
+	if original.is_empty():
+		return ""
+	
+	return create_prompt(original.get("title", "Untitled") + " (copy)", original.get("content", ""))
 
 
 func update_prompt(prompt_id: String, title: String, content: String) -> bool:
@@ -219,6 +351,7 @@ func delete_prompt(prompt_id: String) -> bool:
 			if _selected_prompt_id == prompt_id:
 				_selected_prompt_id = ""
 				_clear_editor()
+				_update_editor_enabled_state()
 			_refresh_prompt_list()
 			return true
 	return false
@@ -233,6 +366,7 @@ func _archive_prompt(prompt_id: String) -> bool:
 			if _selected_prompt_id == prompt_id and not _showing_archived:
 				_selected_prompt_id = ""
 				_clear_editor()
+				_update_editor_enabled_state()
 			_refresh_prompt_list()
 			return true
 	return false
@@ -279,6 +413,7 @@ func send_prompt(prompt_id: String) -> bool:
 	
 	if not _is_connected:
 		push_warning("Codot: Cannot send prompt - not connected to VS Code")
+		_show_auto_save_status("Not connected", Color(0.8, 0.2, 0.2))
 		return false
 	
 	var message := {
@@ -294,12 +429,14 @@ func send_prompt(prompt_id: String) -> bool:
 	
 	if err == OK:
 		prompt_sent.emit(prompt)
-		# Auto-archive if setting enabled
+		_show_auto_save_status("Sending...", Color(0.8, 0.8, 0.2))
+		# Auto-archive if setting enabled (immediate, don't wait for server response)
 		if _get_setting("auto_archive_on_send", true):
 			_archive_prompt(prompt_id)
 		return true
 	else:
 		push_error("Codot: Failed to send prompt: %s" % error_string(err))
+		_show_auto_save_status("Send failed", Color(0.8, 0.2, 0.2))
 		return false
 
 #endregion
@@ -352,6 +489,7 @@ func _update_ui() -> void:
 	_refresh_prompt_list()
 	_update_prompt_count()
 	_update_send_button_state()
+	_update_editor_enabled_state()
 
 
 func _refresh_prompt_list() -> void:
@@ -369,9 +507,9 @@ func _refresh_prompt_list() -> void:
 	if empty_label:
 		empty_label.visible = prompts_to_show.is_empty()
 		if _showing_archived:
-			empty_label.text = "No archived prompts."
+			empty_label.text = "No archived prompts.\n\nPrompts are archived after sending."
 		else:
-			empty_label.text = "No prompts yet. Click '+ New' to create one."
+			empty_label.text = "No prompts yet.\nClick '+ New' to create one."
 	
 	# Create prompt items
 	for prompt in prompts_to_show:
@@ -386,16 +524,16 @@ func _create_prompt_item(prompt: Dictionary) -> Control:
 	item.set_meta("prompt_id", prompt.id)
 	
 	# Style based on selection
+	var style := StyleBoxFlat.new()
 	if prompt.id == _selected_prompt_id:
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.3, 0.4, 0.6, 0.3)
-		style.set_corner_radius_all(4)
-		item.add_theme_stylebox_override("panel", style)
+		style.bg_color = Color(0.25, 0.45, 0.65, 0.4)
+		style.border_color = Color(0.4, 0.6, 0.8, 0.6)
+		style.set_border_width_all(1)
 	else:
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.2, 0.2, 0.2, 0.5)
-		style.set_corner_radius_all(4)
-		item.add_theme_stylebox_override("panel", style)
+		style.bg_color = Color(0.15, 0.15, 0.15, 0.6)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(8)
+	item.add_theme_stylebox_override("panel", style)
 	
 	var hbox := HBoxContainer.new()
 	item.add_child(hbox)
@@ -410,21 +548,22 @@ func _create_prompt_item(prompt: Dictionary) -> Control:
 	vbox.add_child(title_label)
 	
 	var content_str: String = prompt.get("content", "")
-	var preview: String = content_str.substr(0, 60).replace("\n", " ")
+	var preview: String = content_str.substr(0, 80).replace("\n", " ").strip_edges()
 	if preview.length() < content_str.length():
 		preview += "..."
 	
 	var preview_label := Label.new()
 	preview_label.text = preview if preview else "(empty)"
-	preview_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	preview_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55))
 	preview_label.add_theme_font_size_override("font_size", 11)
+	preview_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	vbox.add_child(preview_label)
 	
 	# Action button for archived items
 	if _showing_archived:
 		var restore_btn := Button.new()
 		restore_btn.text = "↩"
-		restore_btn.tooltip_text = "Restore this prompt"
+		restore_btn.tooltip_text = "Restore this prompt to active prompts"
 		restore_btn.pressed.connect(_on_restore_prompt.bind(prompt.id))
 		hbox.add_child(restore_btn)
 	
@@ -436,28 +575,44 @@ func _create_prompt_item(prompt: Dictionary) -> Control:
 
 
 func _select_prompt(prompt_id: String) -> void:
+	# Save current prompt if dirty before switching
+	_save_if_dirty()
+	
 	_selected_prompt_id = prompt_id
 	var prompt := get_prompt(prompt_id)
 	
 	if prompt.is_empty():
 		_clear_editor()
+		_update_editor_enabled_state()
 		return
+	
+	# Prevent auto-save triggering when we programmatically set text
+	_updating_editor = true
 	
 	if _prompt_title_edit:
 		_prompt_title_edit.text = prompt.get("title", "")
 	if _prompt_text_edit:
 		_prompt_text_edit.text = prompt.get("content", "")
 	
+	_updating_editor = false
+	_is_dirty = false
+	
 	_refresh_prompt_list()
 	_update_send_button_state()
+	_update_editor_enabled_state()
+	_show_auto_save_status("", Color(0.5, 0.5, 0.5))
 
 
 func _clear_editor() -> void:
+	_updating_editor = true
 	if _prompt_title_edit:
 		_prompt_title_edit.text = ""
 	if _prompt_text_edit:
 		_prompt_text_edit.text = ""
+	_updating_editor = false
+	_is_dirty = false
 	_update_send_button_state()
+	_show_auto_save_status("", Color(0.5, 0.5, 0.5))
 
 
 func _update_prompt_count() -> void:
@@ -470,7 +625,10 @@ func _update_prompt_count() -> void:
 	if _showing_archived:
 		_prompt_count_label.text = "%d archived" % archived
 	else:
-		_prompt_count_label.text = "%d prompt%s" % [active, "" if active == 1 else "s"]
+		var text := "%d prompt%s" % [active, "" if active == 1 else "s"]
+		if archived > 0:
+			text += " • %d archived" % archived
+		_prompt_count_label.text = text
 
 #endregion
 
@@ -478,44 +636,44 @@ func _update_prompt_count() -> void:
 #region Signal Handlers
 
 func _on_new_prompt_pressed() -> void:
+	_save_if_dirty()
 	if _showing_archived:
-		_archive_toggle.button_pressed = false
+		_archived_toggle.button_pressed = false
 		_showing_archived = false
 	create_prompt()
 
 
-func _on_archive_toggled(pressed: bool) -> void:
+func _on_duplicate_pressed() -> void:
+	if _selected_prompt_id == "":
+		return
+	_save_if_dirty()
+	duplicate_prompt(_selected_prompt_id)
+
+
+func _on_archived_toggled(pressed: bool) -> void:
+	_save_if_dirty()
 	_showing_archived = pressed
 	_selected_prompt_id = ""
 	_clear_editor()
+	_update_editor_enabled_state()
 	_refresh_prompt_list()
 
 
 func _on_settings_pressed() -> void:
-	# Open Editor Settings to the Codot section
+	settings_requested.emit()
 	if Engine.is_editor_hint():
-		var editor := EditorInterface.get_editor_settings()
-		EditorInterface.get_command_palette().open_command_palette()
+		# Show notification about where settings are
+		_show_auto_save_status("Editor → Editor Settings → Plugin → Codot", Color(0.5, 0.7, 0.9))
+		await get_tree().create_timer(4.0).timeout
+		if not _is_dirty:
+			_show_auto_save_status("", Color(0.5, 0.5, 0.5))
 
 
 func _on_reconnect_pressed() -> void:
 	_websocket.close()
 	_is_connected = false
-	_update_status(false)
+	_update_status(false, "Reconnecting...")
 	_try_connect()
-
-
-func _on_save_pressed() -> void:
-	if _selected_prompt_id == "":
-		return
-	
-	var title := _prompt_title_edit.text.strip_edges()
-	var content := _prompt_text_edit.text
-	
-	if title.is_empty():
-		title = "Untitled Prompt"
-	
-	update_prompt(_selected_prompt_id, title, content)
 
 
 func _on_send_pressed() -> void:
@@ -523,18 +681,15 @@ func _on_send_pressed() -> void:
 		return
 	
 	# Save before sending
-	_on_save_pressed()
+	_save_if_dirty()
 	send_prompt(_selected_prompt_id)
 
 
 func _on_delete_pressed() -> void:
 	if _selected_prompt_id == "":
 		return
+	_is_dirty = false  # Don't save, we're deleting
 	delete_prompt(_selected_prompt_id)
-
-
-func _on_editor_changed(_arg = null) -> void:
-	_update_send_button_state()
 
 
 func _on_prompt_item_input(event: InputEvent, prompt_id: String) -> void:
@@ -548,12 +703,19 @@ func _on_restore_prompt(prompt_id: String) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# Handle Ctrl+Enter to send
+	if not is_visible_in_tree():
+		return
+	
 	if event is InputEventKey and event.pressed:
+		# Ctrl+Enter to send
 		if event.keycode == KEY_ENTER and event.ctrl_pressed:
 			if _selected_prompt_id != "" and _is_connected:
 				_on_send_pressed()
 				get_viewport().set_input_as_handled()
+		# Ctrl+N to create new prompt
+		elif event.keycode == KEY_N and event.ctrl_pressed:
+			_on_new_prompt_pressed()
+			get_viewport().set_input_as_handled()
 
 #endregion
 
@@ -582,8 +744,57 @@ func _get_setting(key: String, default_value: Variant) -> Variant:
 #endregion
 
 
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_PREDELETE:
+			_save_if_dirty()
+
+
 func _exit_tree() -> void:
+	_save_if_dirty()
 	if _websocket:
 		_websocket.close()
 	if _reconnect_timer:
 		_reconnect_timer.stop()
+	if _auto_save_timer:
+		_auto_save_timer.stop()
+
+
+#region External Interface (Called by codot.gd)
+
+## Called by the main plugin to inject the WebSocket server reference.
+func set_websocket_server(_server: Node) -> void:
+	# We manage our own WebSocket for VS Code communication
+	# The server passed here is for MCP, not VS Code
+	pass
+
+
+## Called by the main plugin when settings change.
+func on_settings_changed() -> void:
+	# Update auto-save delay from settings
+	var new_delay: float = _get_setting("auto_save_delay", AUTO_SAVE_DELAY)
+	if _auto_save_timer:
+		_auto_save_timer.wait_time = new_delay
+
+
+## Called by the main plugin to update connection status display.
+func update_connection_status(connected: bool, client_count: int, port: int) -> void:
+	# This is for MCP server status, not VS Code
+	# We could display this somewhere in the panel if desired
+	pass
+
+
+## Called when a send operation fails.
+func show_send_error(message: String) -> void:
+	_show_auto_save_status("Send failed", Color(0.8, 0.2, 0.2))
+	push_warning("Codot: %s" % message)
+
+
+## Called when a send operation succeeds.
+func show_send_success() -> void:
+	_show_auto_save_status("Sent ✓", Color(0.2, 0.8, 0.2))
+	# Auto-archive after successful send
+	if _selected_prompt_id != "" and _get_setting("auto_archive_on_send", true):
+		_archive_prompt(_selected_prompt_id)
+
+#endregion

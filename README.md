@@ -14,7 +14,11 @@
 - **Debug Capture** - Capture errors, warnings, and print statements from running games
 - **GUT Integration** - Run and monitor GUT unit tests
 - **Input Simulation** - Simulate keyboard, mouse, and controller input
-- **AI Chat Dock** - Send prompts from Godot directly to VS Code AI assistants
+- **AI Prompt Dock** - Manage and send prompts from Godot directly to VS Code AI assistants
+  - Auto-save with dirty flag tracking
+  - Prompt archiving after sending
+  - Keyboard shortcuts (Ctrl+Enter to send, Ctrl+N for new)
+  - VS Code Copilot Bridge integration
 
 ## 🏗️ Architecture
 
@@ -140,18 +144,32 @@ See [AGENTS.md](AGENTS.md) for the complete list of 64+ tools.
 
 ### WebSocket Port
 
-The plugin listens on port `6850` by default. To change:
+The plugin listens on port `6850` by default. Change in: **Editor → Editor Settings → Plugin → Codot**
 
-**Godot side:** Modify `addons/codot/websocket_server.gd`
+### Codot Settings
 
-**MCP side:** Set environment variable:
-```bash
-export CODOT_PORT=6850
-```
+Access all Codot settings via **Editor → Editor Settings → Plugin → Codot**:
 
-### AI Chat Dock
+| Setting | Description |
+|---------|-------------|
+| `websocket_port` | Port for MCP server connection (default: 6850) |
+| `vscode_port` | Port for VS Code extension (default: 6851) |
+| `enable_debug_logging` | Show [Codot] messages in Output panel |
+| `auto_save_delay` | Seconds before auto-saving prompts (default: 1.5) |
+| `auto_archive_on_send` | Archive prompts after sending to AI |
+| `capture_print_statements` | Include print() in debug output capture |
+| `prompt_preview_length` | Characters to show in prompt list preview |
 
-The optional AI Chat dock (port `6851`) lets you send prompts from Godot to VS Code. Install the VS Code extension:
+### AI Prompt Dock
+
+The Codot dock panel (in the right dock by default) lets you:
+
+1. **Create prompts** - Click "+ New" or press Ctrl+N
+2. **Edit prompts** - Auto-saves after typing stops (1.5s delay)
+3. **Send to AI** - Press Ctrl+Enter or click "Send to AI"
+4. **Archive prompts** - Toggle "📦 Archived" to view sent prompts
+
+The dock connects to VS Code on port `6851`. Install the VS Code extension:
 
 ```bash
 cd vscode-extension
