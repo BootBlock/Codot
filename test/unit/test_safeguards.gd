@@ -9,6 +9,11 @@ var _handler: Node = null
 var _test_dir: String = "res://test_temp_safeguards/"
 
 
+## Check if we're running in editor mode (not headless).
+func _is_editor_available() -> bool:
+	return Engine.is_editor_hint()
+
+
 func before_each() -> void:
 	# Create a fresh command handler for each test
 	var handler_script: GDScript = load("res://addons/codot/command_handler.gd")
@@ -89,6 +94,11 @@ func test_absolute_path_in_project_allowed() -> void:
 
 
 func test_path_outside_project_blocked() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Enable file access restriction
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: bool = settings.get_setting("plugin/codot/restrict_file_access_to_project")
@@ -113,6 +123,11 @@ func test_path_outside_project_blocked() -> void:
 
 
 func test_path_restriction_disabled() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Disable file access restriction
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: bool = settings.get_setting("plugin/codot/restrict_file_access_to_project")
@@ -173,6 +188,11 @@ func test_write_content_within_size_limit() -> void:
 
 
 func test_write_content_exceeds_size_limit() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Set a very small max file size for testing
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: int = settings.get_setting("plugin/codot/max_file_size_kb")
@@ -203,6 +223,11 @@ func test_write_content_exceeds_size_limit() -> void:
 # =============================================================================
 
 func test_copy_file_validates_both_paths() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Enable file access restriction
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: bool = settings.get_setting("plugin/codot/restrict_file_access_to_project")
@@ -233,6 +258,11 @@ func test_copy_file_validates_both_paths() -> void:
 
 
 func test_rename_file_validates_both_paths() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Enable file access restriction
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: bool = settings.get_setting("plugin/codot/restrict_file_access_to_project")
@@ -267,6 +297,11 @@ func test_rename_file_validates_both_paths() -> void:
 # =============================================================================
 
 func test_create_directory_validates_path() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Enable file access restriction
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: bool = settings.get_setting("plugin/codot/restrict_file_access_to_project")
@@ -290,6 +325,11 @@ func test_create_directory_validates_path() -> void:
 
 
 func test_delete_directory_validates_path() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Enable file access restriction
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: bool = settings.get_setting("plugin/codot/restrict_file_access_to_project")
@@ -313,6 +353,11 @@ func test_delete_directory_validates_path() -> void:
 
 
 func test_get_project_files_validates_path() -> void:
+	# Skip test if not in editor mode (EditorInterface not available)
+	if not _is_editor_available():
+		pass_test("Skipping - EditorInterface not available in headless mode")
+		return
+	
 	# Enable file access restriction
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	var original_value: bool = settings.get_setting("plugin/codot/restrict_file_access_to_project")

@@ -270,6 +270,10 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _editor.cmd_get_current_screen(cmd_id, params)
 		"set_current_screen":
 			return _editor.cmd_set_current_screen(cmd_id, params)
+		"get_project_config":
+			return _editor.cmd_get_project_config(cmd_id, params)
+		"set_project_config":
+			return _editor.cmd_set_project_config(cmd_id, params)
 		
 		# =================================================================
 		# Script Operations (commands_script.gd)
@@ -306,8 +310,6 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _input.cmd_simulate_mouse_motion(cmd_id, params)
 		"simulate_action":
 			return _input.cmd_simulate_action(cmd_id, params)
-		"get_input_actions":
-			return _input.cmd_get_input_actions(cmd_id, params)
 		
 		# =================================================================
 		# GUT Testing (commands_gut.gd)

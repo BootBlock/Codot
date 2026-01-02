@@ -160,12 +160,19 @@ class CodebaseValidator:
         path_str = str(file_path)
         return 'addons' in path_str and 'codot' not in path_str
     
+    def _should_skip_legacy(self, file_path: Path) -> bool:
+        """Check if file is a legacy/deprecated file that should be skipped."""
+        legacy_files = ['command_handler_old.gd']
+        return file_path.name in legacy_files
+    
     def cache_all_files(self) -> None:
         """Cache all project files for efficient validation."""
         
         # Cache GDScript files
         for gd_file in self.root_path.rglob('*.gd'):
             if self._should_skip_addon(gd_file):
+                continue
+            if self._should_skip_legacy(gd_file):
                 continue
             cached = CachedFile.from_path(gd_file)
             if cached:
@@ -247,7 +254,9 @@ class CodebaseValidator:
                     "Use _get_scene_root() without cmd_id after _require_scene() check", severity="warning")
             
             # Rule 4: Async race patterns
-            if 'send_prompt' not in file_path.name:
+            # Skip files that intentionally use direct packet reading within _process() context
+            safe_packet_files = ['codot_panel.gd', 'game_connector.gd', 'websocket_server.gd']
+            if 'send_prompt' not in file_path.name and file_path.name not in safe_packet_files:
                 for pattern, msg in self.async_race_patterns:
                     if re.search(pattern, line):
                         self.add_violation(file_path, line_num, "ASYNC_RACE",

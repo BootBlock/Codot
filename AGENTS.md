@@ -581,6 +581,7 @@ The MCP server exposes 80+ tools. Key categories:
 - `godot_refresh_filesystem` - Refresh FileSystem dock
 - `godot_reimport_resource` - Force reimport a resource
 - `godot_get_current_screen` / `godot_set_current_screen` - Switch editor views
+- `godot_get_project_config` / `godot_set_project_config` - Project-specific config
 
 ### Resource Operations
 - `godot_create_resource` - Create any resource type
@@ -601,8 +602,11 @@ The MCP server exposes 80+ tools. Key categories:
 
 ### Running GUT Tests
 ```bash
-# From Godot editor, or:
-godot -d -s addons/gut/gut_cmdln.gd -gdir=res://test/ -gexit
+# From Godot editor, or using command line (headless):
+godot --headless -s addons/gut/gut_cmdln.gd "-gdir=res://test/unit/" -gexit
+
+# Note: Do NOT use -d flag with GUT in Godot 4.6+
+# The -d flag causes issues with static initializers
 ```
 
 ### Running Python Tests
@@ -652,6 +656,8 @@ When you need to interact with Godot, use these MCP tools:
 | **List autoloads** | `godot_get_autoloads` |
 | **Add autoload** | `godot_add_autoload` |
 | **Remove autoload** | `godot_remove_autoload` |
+| **Get project config** | `godot_get_project_config` |
+| **Set project config** | `godot_set_project_config` |
 
 ## Automation Commands (NEW)
 
@@ -966,6 +972,53 @@ Change the loading order of autoloads.
 godot_reorder_autoloads(order=["AudioManager", "GameManager", "UIManager"])
 → Returns: {"reordered": true, "new_order": ["AudioManager", "GameManager", "UIManager"]}
 ```
+
+## Project Config Commands
+
+Manage per-project configuration stored in `res://.codot/config.json`:
+
+### godot_get_project_config
+Get current project config status and all settings.
+
+```
+godot_get_project_config
+→ Returns: {
+    "using_project_config": true,
+    "config_path": "res://.codot/config.json",
+    "settings": {
+        "pre_prompt_message": "You are working on the Codot project...",
+        "post_prompt_message": "",
+        "wrap_prompts_with_prefix_suffix": true
+    }
+}
+```
+
+### godot_set_project_config
+Set a project config setting. Supported settings: `pre_prompt_message`, `post_prompt_message`, `wrap_prompts_with_prefix_suffix`.
+
+```
+godot_set_project_config(key="pre_prompt_message", value="You are working on a Godot game...")
+→ Returns: {
+    "key": "pre_prompt_message",
+    "saved": true,
+    "config_path": "res://.codot/config.json"
+}
+```
+
+### Project Config vs Editor Settings
+
+Settings can be stored in two places:
+- **Editor Settings** (`Editor → Editor Settings → Plugin → Codot`): Per-user, applies to all projects
+- **Project Config** (`res://.codot/config.json`): Per-project, can be committed to version control
+
+The following settings support project config:
+| Setting | Description |
+|---------|-------------|
+| `pre_prompt_message` | Text prepended to all prompts sent to AI |
+| `post_prompt_message` | Text appended to all prompts sent to AI |
+| `wrap_prompts_with_prefix_suffix` | Whether to apply pre/post messages |
+
+When a setting exists in both places, project config takes priority.
 
 ## Security Safeguards
 

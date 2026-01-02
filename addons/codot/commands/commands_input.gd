@@ -144,30 +144,6 @@ func cmd_simulate_action(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	})
 
 
-## Get all defined input actions.
-## [br][br]
-## Returns list of all actions in the InputMap with their bound events.
-func cmd_get_input_actions(cmd_id: Variant, _params: Dictionary) -> Dictionary:
-	var actions: Array = []
-	
-	for action in InputMap.get_actions():
-		var action_str: String = str(action)
-		var events: Array = []
-		
-		for event in InputMap.action_get_events(action):
-			events.append(event.as_text())
-		
-		actions.append({
-			"name": action_str,
-			"events": events
-		})
-	
-	return _success(cmd_id, {
-		"actions": actions,
-		"count": actions.size()
-	})
-
-
 # =============================================================================
 # Key Name Mapping
 # =============================================================================

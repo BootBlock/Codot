@@ -78,6 +78,7 @@ func cmd_get_autoload(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		"name": autoload_name,
 		"path": path,
 		"singleton": is_singleton,
+		"exists": true,
 		"file_exists": file_exists,
 	})
 
@@ -169,11 +170,12 @@ func cmd_remove_autoload(cmd_id: Variant, params: Dictionary) -> Dictionary:
 ## - 'name' (String, required): Current name of the autoload.
 ## - 'new_name' (String, required): New name for the autoload.
 func cmd_rename_autoload(cmd_id: Variant, params: Dictionary) -> Dictionary:
-	var autoload_name: String = params.get("name", "")
+	# Support both 'name' and 'old_name' for the source autoload
+	var autoload_name: String = params.get("old_name", params.get("name", ""))
 	var new_name: String = params.get("new_name", "")
 	
 	if autoload_name.is_empty():
-		return _error(cmd_id, "MISSING_PARAM", "Missing 'name' parameter")
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'old_name' or 'name' parameter")
 	if new_name.is_empty():
 		return _error(cmd_id, "MISSING_PARAM", "Missing 'new_name' parameter")
 	
@@ -278,7 +280,7 @@ func cmd_reorder_autoloads(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	var save_err: int = ProjectSettings.save()
 	
 	return _success(cmd_id, {
-		"order": order_array,
+		"new_order": order_array,
 		"reordered": true,
 		"saved": save_err == OK,
 		"note": "Restart the editor or reload the project to apply the change.",

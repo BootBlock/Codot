@@ -228,6 +228,8 @@ func _validate_path_in_project(path: String, cmd_id: Variant) -> Dictionary:
 
 ## Check if file access restriction is enabled in settings.
 func _is_file_access_restricted() -> bool:
+	if not Engine.is_editor_hint():
+		return true  # Default to restricted in non-editor mode
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	if settings == null:
 		return true  # Default to restricted if settings unavailable
@@ -236,6 +238,8 @@ func _is_file_access_restricted() -> bool:
 
 ## Check if system commands are allowed.
 func _are_system_commands_allowed() -> bool:
+	if not Engine.is_editor_hint():
+		return false  # Default to not allowed in non-editor mode
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	if settings == null:
 		return false  # Default to not allowed if settings unavailable
@@ -244,6 +248,8 @@ func _are_system_commands_allowed() -> bool:
 
 ## Get the maximum file size allowed for operations (in bytes).
 func _get_max_file_size() -> int:
+	if not Engine.is_editor_hint():
+		return 1024 * 1024  # Default 1MB in non-editor mode
 	var settings: EditorSettings = EditorInterface.get_editor_settings()
 	if settings == null:
 		return 1024 * 1024  # Default 1MB

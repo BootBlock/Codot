@@ -463,3 +463,48 @@ func cmd_set_current_screen(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	editor_interface.set_main_screen_editor(screen)
 	
 	return _success(cmd_id, {"screen": screen, "switched": true})
+
+
+# =============================================================================
+# Project Config Commands
+# =============================================================================
+
+## Get project config status and settings.
+## [br][br]
+## Returns information about the project-level config file.
+func cmd_get_project_config(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	const ProjectConfig = preload("res://addons/codot/codot_project_config.gd")
+	
+	return _success(cmd_id, {
+		"exists": ProjectConfig.config_exists(),
+		"path": ProjectConfig.CONFIG_FILE_PATH,
+		"settings": ProjectConfig.get_all_project_settings(),
+		"supported_settings": ProjectConfig.PROJECT_SETTINGS,
+	})
+
+
+## Set a project config setting.
+## [br][br]
+## [param params]:
+## - 'key' (String, required): Setting key to set.
+## - 'value' (Variant, required): Value to set. Pass null to remove.
+func cmd_set_project_config(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	const ProjectConfig = preload("res://addons/codot/codot_project_config.gd")
+	
+	var key: String = params.get("key", "")
+	if key.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'key' parameter")
+	
+	if key not in ProjectConfig.PROJECT_SETTINGS:
+		return _error(cmd_id, "INVALID_KEY", "Key not supported for project config. Supported: " + str(ProjectConfig.PROJECT_SETTINGS))
+	
+	# value can be null (to clear/remove the setting)
+	var value: Variant = params.get("value", null)
+	ProjectConfig.set_project_setting(key, value)
+	var saved: bool = ProjectConfig.save_config()
+	
+	return _success(cmd_id, {
+		"key": key,
+		"value": value,
+		"saved": saved,
+	})

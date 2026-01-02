@@ -831,6 +831,34 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "get_project_config": CommandDefinition(
+        description="Get the project-level Codot config (pre/post prompts stored per-project). Returns the .codot/config.json settings.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "set_project_config": CommandDefinition(
+        description="Set a project-level Codot config setting. Stores in .codot/config.json. Supported keys: pre_prompt_message, post_prompt_message, wrap_prompts_with_prefix_suffix",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "description": "Setting key to set",
+                    "enum": ["pre_prompt_message", "post_prompt_message", "wrap_prompts_with_prefix_suffix"],
+                },
+                "value": {
+                    "type": ["string", "boolean", "null"],
+                    "description": "Value to set. Pass null to remove the setting (revert to editor settings).",
+                },
+            },
+            "required": ["key", "value"],
+        },
+    ),
+    
     # ========================================================================
     # NODE MANIPULATION
     # ========================================================================

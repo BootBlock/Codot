@@ -95,12 +95,15 @@ func cmd_set_node_property(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	
 	var node_path: String = params.get("path", "")
 	var property: String = params.get("property", "")
-	var value = params.get("value")
 	
 	if node_path.is_empty():
 		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
 	if property.is_empty():
 		return _error(cmd_id, "MISSING_PARAM", "Missing 'property' parameter")
+	if not params.has("value"):
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'value' parameter")
+	
+	var value = params.get("value", null)  # null is valid after has() check
 	
 	var root = _get_scene_root()
 	var node = root.get_node_or_null(node_path)

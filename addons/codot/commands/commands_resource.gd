@@ -3,6 +3,14 @@
 extends "command_base.gd"
 
 
+## Check if an object has a property by name.
+func _object_has_property(obj: Object, property_name: String) -> bool:
+	for prop in obj.get_property_list():
+		if prop["name"] == property_name:
+			return true
+	return false
+
+
 # =============================================================================
 # Resource Operations
 # =============================================================================
@@ -285,7 +293,7 @@ func cmd_create_resource(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	# Set properties
 	var set_props: Array = []
 	for key in properties:
-		if resource.has_property(key):
+		if self._object_has_property(resource, key):
 			resource.set(key, properties[key])
 			set_props.append(key)
 	
@@ -407,7 +415,7 @@ func cmd_set_resource_properties(cmd_id: Variant, params: Dictionary) -> Diction
 	var failed_props: Array = []
 	
 	for key in properties:
-		if resource.has_property(key):
+		if self._object_has_property(resource, key):
 			resource.set(key, properties[key])
 			set_props.append(key)
 		else:

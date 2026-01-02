@@ -289,10 +289,13 @@ func _cmd_get_variable(params: Dictionary) -> Dictionary:
 func _cmd_set_variable(params: Dictionary) -> Dictionary:
 	var node_path: String = params.get("path", "")
 	var variable_name: String = params.get("variable", "")
-	var value = params.get("value")
 	
 	if node_path.is_empty() or variable_name.is_empty():
 		return {"error": {"code": "MISSING_PARAM", "message": "path, variable, and value are required"}}
+	if not params.has("value"):
+		return {"error": {"code": "MISSING_PARAM", "message": "path, variable, and value are required"}}
+	
+	var value = params.get("value", null)  # null is valid after has() check
 	
 	var root := get_tree().current_scene
 	if not root:

@@ -10,9 +10,9 @@ extends "command_base.gd"
 ## Get all input actions defined in the project.
 ## [br][br]
 ## [param params]:
-## - 'include_builtin' (bool, optional): Include built-in Godot actions (ui_*, etc.). Default: false.
+## - 'include_builtins' (bool, optional): Include built-in Godot actions (ui_*, etc.). Default: false.
 func cmd_get_input_actions(cmd_id: Variant, params: Dictionary) -> Dictionary:
-	var include_builtin: bool = params.get("include_builtin", false)
+	var include_builtins: bool = params.get("include_builtins", false)
 	
 	var actions: Array[Dictionary] = []
 	var action_list: Array[StringName] = InputMap.get_actions()
@@ -21,7 +21,7 @@ func cmd_get_input_actions(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		var name_str: String = String(action_name)
 		
 		# Skip built-in actions unless explicitly requested
-		if not include_builtin and name_str.begins_with("ui_"):
+		if not include_builtins and name_str.begins_with("ui_"):
 			continue
 		
 		var action_info: Dictionary = {
@@ -34,7 +34,7 @@ func cmd_get_input_actions(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	return _success(cmd_id, {
 		"actions": actions,
 		"count": actions.size(),
-		"include_builtin": include_builtin,
+		"include_builtins": include_builtins,
 	})
 
 
@@ -52,7 +52,7 @@ func cmd_get_input_action(cmd_id: Variant, params: Dictionary) -> Dictionary:
 		return _error(cmd_id, "ACTION_NOT_FOUND", "Input action not found: " + action_name)
 	
 	return _success(cmd_id, {
-		"name": action_name,
+		"action": action_name,
 		"deadzone": InputMap.action_get_deadzone(action_name),
 		"events": _get_action_events(action_name),
 		"exists": true,
@@ -196,34 +196,41 @@ func cmd_add_input_event_key(cmd_id: Variant, params: Dictionary) -> Dictionary:
 ## [br][br]
 ## [param params]:
 ## - 'action' (String, required): Name of the input action.
-## - 'button' (String, required): Button name ("left", "right", "middle", "wheel_up", "wheel_down").
+## - 'button' (int or String, required): Button index (1=left, 2=right, 3=middle) or name ("left", "right", "middle", "wheel_up", "wheel_down").
 func cmd_add_input_event_mouse(cmd_id: Variant, params: Dictionary) -> Dictionary:
 	var action_name: String = params.get("action", "")
-	var button_name: String = params.get("button", "").to_lower()
+	var button_param = params.get("button", null)
 	
 	if action_name.is_empty():
 		return _error(cmd_id, "MISSING_PARAM", "Missing 'action' parameter")
-	if button_name.is_empty():
+	if button_param == null:
 		return _error(cmd_id, "MISSING_PARAM", "Missing 'button' parameter")
 	
 	if not InputMap.has_action(action_name):
 		return _error(cmd_id, "ACTION_NOT_FOUND", "Input action not found: " + action_name)
 	
-	# Map button name to enum
+	# Map button to enum - support both int and string
 	var button_index: MouseButton
-	match button_name:
-		"left":
-			button_index = MOUSE_BUTTON_LEFT
-		"right":
-			button_index = MOUSE_BUTTON_RIGHT
-		"middle":
-			button_index = MOUSE_BUTTON_MIDDLE
-		"wheel_up":
-			button_index = MOUSE_BUTTON_WHEEL_UP
-		"wheel_down":
-			button_index = MOUSE_BUTTON_WHEEL_DOWN
-		_:
-			return _error(cmd_id, "INVALID_BUTTON", "Invalid button name: " + button_name + ". Use: left, right, middle, wheel_up, wheel_down")
+	if button_param is int:
+		# Direct integer index (1=left, 2=right, 3=middle, 4=wheel_up, 5=wheel_down)
+		button_index = button_param as MouseButton
+	elif button_param is String:
+		var button_name: String = button_param.to_lower()
+		match button_name:
+			"left":
+				button_index = MOUSE_BUTTON_LEFT
+			"right":
+				button_index = MOUSE_BUTTON_RIGHT
+			"middle":
+				button_index = MOUSE_BUTTON_MIDDLE
+			"wheel_up":
+				button_index = MOUSE_BUTTON_WHEEL_UP
+			"wheel_down":
+				button_index = MOUSE_BUTTON_WHEEL_DOWN
+			_:
+				return _error(cmd_id, "INVALID_BUTTON", "Invalid button name: " + button_name + ". Use: left, right, middle, wheel_up, wheel_down")
+	else:
+		return _error(cmd_id, "INVALID_BUTTON", "Button must be an integer or string")
 	
 	# Create mouse button event
 	var event := InputEventMouseButton.new()
@@ -237,7 +244,7 @@ func cmd_add_input_event_mouse(cmd_id: Variant, params: Dictionary) -> Dictionar
 	
 	return _success(cmd_id, {
 		"action": action_name,
-		"button": button_name,
+		"button": int(button_index),
 		"added": true,
 	})
 
@@ -339,7 +346,7 @@ func cmd_clear_input_action_events(cmd_id: Variant, params: Dictionary) -> Dicti
 	return _success(cmd_id, {
 		"action": action_name,
 		"cleared": true,
-		"events_removed": event_count,
+		"events_cleared": event_count,
 	})
 
 

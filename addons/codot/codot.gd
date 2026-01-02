@@ -129,15 +129,14 @@ func _add_dock_panel() -> void:
 ## Handles settings button click from the panel.
 func _on_settings_requested() -> void:
 	_log("Opening Codot settings...")
-	# Open Editor Settings and navigate to Codot section
-	EditorInterface.get_editor_settings()
-	EditorInterface.popup_dialog_centered(
-		EditorInterface.get_base_control().get_tree().get_root().find_child("EditorSettingsDialog", true, false),
-		Vector2i(900, 700)
-	)
+	# Open Editor Settings - use the edit_settings method which is more reliable
+	var settings := EditorInterface.get_editor_settings()
+	if settings:
+		# Navigate to a Codot setting to open the right section
+		EditorInterface.edit_resource(settings)
 	# Note: Unfortunately there's no direct way to navigate to a specific section
 	# The user will need to search for "Codot" in the Editor Settings
-	# Show helpful message
+	# Show helpful message via the panel
 	if _dock and _dock.has_method("show_settings_hint"):
 		_dock.show_settings_hint()
 

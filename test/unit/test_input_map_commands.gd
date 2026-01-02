@@ -45,6 +45,9 @@ func _cleanup_test_actions() -> void:
 # =============================================================================
 
 func test_get_input_actions_basic() -> void:
+	# Add a test action to ensure we have at least one
+	InputMap.add_action(_test_action)
+	
 	var command: Dictionary = {
 		"id": 1,
 		"command": "get_input_actions",

@@ -5,6 +5,9 @@
 @tool
 extends PanelContainer
 
+## Preload project config for per-project pre/post prompts
+const ProjectConfig = preload("res://addons/codot/codot_project_config.gd")
+
 ## Emitted when a prompt is sent to VS Code
 signal prompt_sent(prompt_data: Dictionary)
 
@@ -76,6 +79,9 @@ var _waiting_for_ack: bool = false
 var _pending_ack_prompt_id: String = ""
 var _ack_received: bool = false
 var _ack_error: String = ""
+
+## Test mode flag - when true, uses in-memory storage instead of file persistence
+var _test_mode: bool = false
 #endregion
 
 
@@ -703,6 +709,10 @@ func send_prompt(prompt_id: String) -> bool:
 func _load_prompts() -> void:
 	_prompts.clear()
 	
+	# In test mode, don't load from file - start with empty prompts
+	if _test_mode:
+		return
+	
 	if not FileAccess.file_exists(SAVE_FILE_PATH):
 		return
 	
@@ -727,6 +737,10 @@ func _load_prompts() -> void:
 
 
 func _save_prompts() -> void:
+	# In test mode, don't persist to disk
+	if _test_mode:
+		return
+	
 	var file := FileAccess.open(SAVE_FILE_PATH, FileAccess.WRITE)
 	if not file:
 		push_error("Codot: Failed to save prompts: %s" % error_string(FileAccess.get_open_error()))
@@ -986,10 +1000,10 @@ func _on_wrapper_pressed() -> void:
 func _show_wrapper_dialog() -> void:
 	var dialog := AcceptDialog.new()
 	dialog.title = "Edit Prompt Wrappers"
-	dialog.size = Vector2(500, 450)
+	dialog.size = Vector2(500, 520)
 	
 	var main_vbox := VBoxContainer.new()
-	main_vbox.custom_minimum_size = Vector2(480, 400)
+	main_vbox.custom_minimum_size = Vector2(480, 470)
 	dialog.add_child(main_vbox)
 	
 	# Enable/Disable toggle
@@ -1004,6 +1018,16 @@ func _show_wrapper_dialog() -> void:
 	var enable_spacer := Control.new()
 	enable_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	enable_hbox.add_child(enable_spacer)
+	
+	# Project vs Global toggle
+	var scope_hbox := HBoxContainer.new()
+	main_vbox.add_child(scope_hbox)
+	
+	var scope_check := CheckBox.new()
+	scope_check.text = "Store in project config (for this project only)"
+	scope_check.button_pressed = ProjectConfig.is_using_project_config("pre_prompt_message")
+	scope_check.tooltip_text = "When enabled, these settings are stored in .codot/config.json\nand only apply to this project. When disabled, settings\nare stored in global Editor Settings."
+	scope_hbox.add_child(scope_check)
 	
 	main_vbox.add_child(HSeparator.new())
 	
@@ -1042,10 +1066,26 @@ func _show_wrapper_dialog() -> void:
 	
 	# Handle dialog confirmation
 	dialog.confirmed.connect(func():
+		# Always save enable toggle to editor settings (global preference)
 		CodotSettings.set_setting("wrap_prompts_with_prefix_suffix", enable_check.button_pressed)
-		CodotSettings.set_setting("pre_prompt_message", pre_edit.text)
-		CodotSettings.set_setting("post_prompt_message", post_edit.text)
-		_show_auto_save_status("Wrappers saved ✓", Color(0.2, 0.8, 0.2))
+		
+		if scope_check.button_pressed:
+			# Save to project config
+			ProjectConfig.set_project_setting("pre_prompt_message", pre_edit.text)
+			ProjectConfig.set_project_setting("post_prompt_message", post_edit.text)
+			ProjectConfig.set_project_setting("wrap_prompts_with_prefix_suffix", enable_check.button_pressed)
+			ProjectConfig.save_config()
+			_show_auto_save_status("Wrappers saved to project ✓", Color(0.2, 0.8, 0.2))
+		else:
+			# Clear any project settings and save to editor settings
+			if ProjectConfig.has_project_setting("pre_prompt_message"):
+				ProjectConfig.revert_to_editor_settings("pre_prompt_message")
+				ProjectConfig.revert_to_editor_settings("post_prompt_message")
+				ProjectConfig.revert_to_editor_settings("wrap_prompts_with_prefix_suffix")
+				ProjectConfig.save_config()
+			CodotSettings.set_setting("pre_prompt_message", pre_edit.text)
+			CodotSettings.set_setting("post_prompt_message", post_edit.text)
+			_show_auto_save_status("Wrappers saved globally ✓", Color(0.2, 0.8, 0.2))
 		dialog.queue_free()
 	)
 	
@@ -1130,6 +1170,12 @@ func _generate_id() -> String:
 func _get_setting(key: String, default_value: Variant) -> Variant:
 	if not Engine.is_editor_hint():
 		return default_value
+	
+	# Check project config first for supported settings
+	if ProjectConfig.is_using_project_config(key):
+		var project_value: Variant = ProjectConfig.get_project_setting(key)
+		if project_value != null:
+			return project_value
 	
 	var settings := EditorInterface.get_editor_settings()
 	var full_key := SETTINGS_PREFIX + key

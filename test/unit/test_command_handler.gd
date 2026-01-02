@@ -151,6 +151,8 @@ func test_print_to_console_warning() -> void:
 	var response = _handler.handle_command(command)
 	
 	assert_true(response["success"], "print_to_console warning should succeed")
+	# GUT treats push_warning as engine error, so we need to acknowledge it
+	assert_engine_error(1, "Expected warning to be logged")
 
 
 # =============================================================================
