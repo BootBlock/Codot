@@ -50,6 +50,19 @@ disabled = true
 tooltip_text = "Duplicate the selected prompt"
 text = "⧉"
 
+[node name="ExportButton" type="Button" parent="MainVBox/Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+tooltip_text = "Export the selected prompt to a file"
+text = "📤"
+
+[node name="ImportButton" type="Button" parent="MainVBox/Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Import a prompt from a file"
+text = "📥"
+
 [node name="ToolbarSpacer" type="Control" parent="MainVBox/Toolbar"]
 layout_mode = 2
 size_flags_horizontal = 3

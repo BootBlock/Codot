@@ -1,7 +1,7 @@
 ## Codot Prompt Management Panel
 ## [br][br]
 ## Manages multiple prompts that can be edited and sent to VS Code AI assistants.
-## Features auto-save, archiving, and real-time status updates.
+## Features auto-save, archiving, export/import, and real-time status updates.
 @tool
 extends PanelContainer
 
@@ -22,13 +22,16 @@ const SETTINGS_PREFIX := "plugin/codot/"
 const SAVE_FILE_PATH := "user://codot_prompts.json"
 const DEFAULT_VSCODE_PORT := 6851
 const RECONNECT_INTERVAL := 5.0
-const AUTO_SAVE_DELAY := 1.5  # Seconds after typing stops before auto-save
+const AUTO_SAVE_DELAY := 1.5
+const SETTINGS_MESSAGE_DURATION := 20.0  # Duration to show settings navigation message
 #endregion
 
 #region Node References (set in _ready via unique names)
 var _status_indicator: Label
 var _new_prompt_button: Button
 var _duplicate_button: Button
+var _export_button: Button
+var _import_button: Button
 var _archived_toggle: Button
 var _settings_button: Button
 var _reconnect_button: Button
@@ -62,6 +65,10 @@ var _is_dirty: bool = false
 
 ## Track if we're programmatically setting text (to avoid triggering auto-save)
 var _updating_editor: bool = false
+
+## Track connection attempts for debugging
+var _connection_attempts: int = 0
+var _last_connection_error: String = ""
 #endregion
 
 
@@ -79,6 +86,8 @@ func _cache_node_references() -> void:
 	_status_indicator = %StatusIndicator
 	_new_prompt_button = %NewPromptButton
 	_duplicate_button = %DuplicateButton
+	_export_button = %ExportButton
+	_import_button = %ImportButton
 	_archived_toggle = %ArchivedToggle
 	_settings_button = %SettingsButton
 	_reconnect_button = %ReconnectButton
@@ -111,6 +120,8 @@ func _setup_timers() -> void:
 func _connect_signals() -> void:
 	_new_prompt_button.pressed.connect(_on_new_prompt_pressed)
 	_duplicate_button.pressed.connect(_on_duplicate_pressed)
+	_export_button.pressed.connect(_on_export_pressed)
+	_import_button.pressed.connect(_on_import_pressed)
 	_archived_toggle.toggled.connect(_on_archived_toggled)
 	_settings_button.pressed.connect(_on_settings_pressed)
 	_reconnect_button.pressed.connect(_on_reconnect_pressed)
@@ -130,12 +141,14 @@ func _try_connect() -> void:
 	if _is_connected:
 		return
 	
+	_connection_attempts += 1
 	var port: int = _get_setting("vscode_port", DEFAULT_VSCODE_PORT)
 	var url := "ws://127.0.0.1:%d" % port
 	
 	var err := _websocket.connect_to_url(url)
 	if err != OK:
-		_update_status(false, "Connection failed")
+		_last_connection_error = "Connection failed: %s" % error_string(err)
+		_update_status(false, _last_connection_error)
 
 
 func _process(_delta: float) -> void:
@@ -148,6 +161,8 @@ func _process(_delta: float) -> void:
 	match state:
 		WebSocketPeer.STATE_OPEN:
 			if not _is_connected:
+				_connection_attempts = 0
+				_last_connection_error = ""
 				_update_status(true)
 			_process_incoming_messages()
 		WebSocketPeer.STATE_CLOSED:
@@ -157,7 +172,10 @@ func _process(_delta: float) -> void:
 			pass
 		WebSocketPeer.STATE_CONNECTING:
 			_update_status_text("● Connecting...", Color(0.8, 0.8, 0.2), 
-				"Attempting to connect to VS Code on port %d" % _get_setting("vscode_port", DEFAULT_VSCODE_PORT))
+				"Attempting to connect to VS Code on port %d\nAttempt #%d" % [
+					_get_setting("vscode_port", DEFAULT_VSCODE_PORT),
+					_connection_attempts
+				])
 
 
 func _process_incoming_messages() -> void:
@@ -199,6 +217,8 @@ func _update_status(connected: bool, reason: String = "") -> void:
 		if reason:
 			tooltip += "\n" + reason
 		tooltip += "\nMake sure the Codot Bridge extension is running in VS Code"
+		if _connection_attempts > 0:
+			tooltip += "\nConnection attempts: %d" % _connection_attempts
 		_update_status_text("● Disconnected", Color(0.8, 0.2, 0.2), tooltip)
 	
 	_update_send_button_state()
@@ -216,14 +236,14 @@ func _update_send_button_state() -> void:
 	if _send_button:
 		var has_content := _prompt_text_edit and _prompt_text_edit.text.strip_edges().length() > 0
 		var has_selection := _selected_prompt_id != ""
-		_send_button.disabled = not (_is_connected and has_content and has_selection)
+		_send_button.disabled = not (has_content and has_selection)
 		
-		if not _is_connected:
-			_send_button.tooltip_text = "Not connected to VS Code"
-		elif not has_selection:
+		if not has_selection:
 			_send_button.tooltip_text = "Select a prompt first"
 		elif not has_content:
 			_send_button.tooltip_text = "Prompt content is empty"
+		elif not _is_connected:
+			_send_button.tooltip_text = "Send prompt (not connected - will attempt connection)"
 		else:
 			_send_button.tooltip_text = "Send prompt to VS Code AI (Ctrl+Enter)"
 
@@ -247,6 +267,9 @@ func _update_editor_enabled_state() -> void:
 	
 	if _duplicate_button:
 		_duplicate_button.disabled = not has_selection
+	
+	if _export_button:
+		_export_button.disabled = not has_selection
 
 
 #region Auto-Save System
@@ -321,7 +344,18 @@ func create_prompt(title: String = "", content: String = "") -> String:
 	_save_prompts()
 	_refresh_prompt_list()
 	_select_prompt(prompt_id)
+	
+	# Auto-focus title field and select all text
+	_focus_title_field()
+	
 	return prompt_id
+
+
+## Focus the title field and select all text for immediate editing
+func _focus_title_field() -> void:
+	if _prompt_title_edit:
+		_prompt_title_edit.grab_focus()
+		_prompt_title_edit.select_all()
 
 
 func duplicate_prompt(prompt_id: String) -> String:
@@ -406,16 +440,131 @@ func get_archived_prompts() -> Array[Dictionary]:
 	return result
 
 
+#region Export/Import
+
+func export_prompt(prompt_id: String, file_path: String) -> bool:
+	var prompt := get_prompt(prompt_id)
+	if prompt.is_empty():
+		push_error("Codot: Cannot export - prompt not found")
+		return false
+	
+	var export_data := {
+		"codot_version": "1.0",
+		"exported_at": Time.get_datetime_string_from_system(),
+		"prompt": {
+			"title": prompt.get("title", ""),
+			"content": prompt.get("content", ""),
+			"created_at": prompt.get("created_at", "")
+		}
+	}
+	
+	var file := FileAccess.open(file_path, FileAccess.WRITE)
+	if not file:
+		push_error("Codot: Failed to write export file: %s" % error_string(FileAccess.get_open_error()))
+		return false
+	
+	var json_str := JSON.stringify(export_data, "\t")
+	file.store_string(json_str)
+	file.close()
+	
+	_show_auto_save_status("Exported ✓", Color(0.2, 0.8, 0.2))
+	return true
+
+
+func import_prompt(file_path: String) -> String:
+	if not FileAccess.file_exists(file_path):
+		push_error("Codot: Import file not found: %s" % file_path)
+		_show_auto_save_status("Import failed", Color(0.8, 0.2, 0.2))
+		return ""
+	
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	if not file:
+		push_error("Codot: Failed to read import file: %s" % error_string(FileAccess.get_open_error()))
+		_show_auto_save_status("Import failed", Color(0.8, 0.2, 0.2))
+		return ""
+	
+	var json := JSON.new()
+	var text := file.get_as_text()
+	file.close()
+	
+	if json.parse(text) != OK:
+		push_error("Codot: Failed to parse import file: %s" % json.get_error_message())
+		_show_auto_save_status("Invalid file", Color(0.8, 0.2, 0.2))
+		return ""
+	
+	var data = json.get_data()
+	if not data is Dictionary:
+		push_error("Codot: Invalid import file format")
+		_show_auto_save_status("Invalid format", Color(0.8, 0.2, 0.2))
+		return ""
+	
+	# Support both full export format and simple format
+	var prompt_data: Dictionary
+	if data.has("prompt"):
+		prompt_data = data.prompt
+	else:
+		prompt_data = data
+	
+	var title: String = prompt_data.get("title", "Imported Prompt")
+	var content: String = prompt_data.get("content", "")
+	
+	var prompt_id := create_prompt(title, content)
+	_show_auto_save_status("Imported ✓", Color(0.2, 0.8, 0.2))
+	return prompt_id
+
+#endregion
+
+
 func send_prompt(prompt_id: String) -> bool:
 	var prompt := get_prompt(prompt_id)
 	if prompt.is_empty():
+		_show_auto_save_status("Prompt not found", Color(0.8, 0.2, 0.2))
 		return false
 	
-	if not _is_connected:
-		push_warning("Codot: Cannot send prompt - not connected to VS Code")
-		_show_auto_save_status("Not connected", Color(0.8, 0.2, 0.2))
+	# Check WebSocket state
+	if not is_instance_valid(_websocket):
+		_show_auto_save_status("WebSocket invalid", Color(0.8, 0.2, 0.2))
+		push_error("Codot: WebSocket instance is invalid")
 		return false
 	
+	var ws_state := _websocket.get_ready_state()
+	
+	# If not connected, try to connect first
+	if ws_state != WebSocketPeer.STATE_OPEN:
+		_show_auto_save_status("Connecting...", Color(0.8, 0.8, 0.2))
+		
+		# Try to establish connection
+		var port: int = _get_setting("vscode_port", DEFAULT_VSCODE_PORT)
+		var url := "ws://127.0.0.1:%d" % port
+		
+		# Close existing connection attempt
+		_websocket.close()
+		
+		var err := _websocket.connect_to_url(url)
+		if err != OK:
+			var error_msg := "Connection failed: %s\n\nMake sure:\n1. VS Code is running\n2. Codot Bridge extension is active\n3. Port %d is correct" % [error_string(err), port]
+			push_warning("Codot: %s" % error_msg)
+			_show_auto_save_status("Not connected", Color(0.8, 0.2, 0.2))
+			return false
+		
+		# Wait for connection with timeout
+		var timeout := 3.0
+		var elapsed := 0.0
+		while elapsed < timeout:
+			_websocket.poll()
+			if _websocket.get_ready_state() == WebSocketPeer.STATE_OPEN:
+				_is_connected = true
+				_update_status(true)
+				break
+			await get_tree().create_timer(0.1).timeout
+			elapsed += 0.1
+		
+		if _websocket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+			_show_auto_save_status("Connection timeout", Color(0.8, 0.2, 0.2))
+			push_warning("Codot: Connection timed out after %.1fs" % timeout)
+			return false
+	
+	# Now try to send
 	var message := {
 		"type": "prompt",
 		"prompt_id": prompt.id,
@@ -429,13 +578,15 @@ func send_prompt(prompt_id: String) -> bool:
 	
 	if err == OK:
 		prompt_sent.emit(prompt)
-		_show_auto_save_status("Sending...", Color(0.8, 0.8, 0.2))
-		# Auto-archive if setting enabled (immediate, don't wait for server response)
+		_show_auto_save_status("Sent!", Color(0.2, 0.8, 0.2))
+		
+		# Auto-archive if setting enabled
 		if _get_setting("auto_archive_on_send", true):
 			_archive_prompt(prompt_id)
 		return true
 	else:
-		push_error("Codot: Failed to send prompt: %s" % error_string(err))
+		var error_msg := "Send failed: %s" % error_string(err)
+		push_error("Codot: %s" % error_msg)
 		_show_auto_save_status("Send failed", Color(0.8, 0.2, 0.2))
 		return false
 
@@ -547,8 +698,9 @@ func _create_prompt_item(prompt: Dictionary) -> Control:
 	title_label.add_theme_font_size_override("font_size", 13)
 	vbox.add_child(title_label)
 	
+	var preview_length: int = _get_setting("prompt_preview_length", 80)
 	var content_str: String = prompt.get("content", "")
-	var preview: String = content_str.substr(0, 80).replace("\n", " ").strip_edges()
+	var preview: String = content_str.substr(0, preview_length).replace("\n", " ").strip_edges()
 	if preview.length() < content_str.length():
 		preview += "..."
 	
@@ -650,6 +802,52 @@ func _on_duplicate_pressed() -> void:
 	duplicate_prompt(_selected_prompt_id)
 
 
+func _on_export_pressed() -> void:
+	if _selected_prompt_id == "":
+		return
+	
+	_save_if_dirty()
+	
+	# Get prompt for default filename
+	var prompt := get_prompt(_selected_prompt_id)
+	var title_str: String = prompt.get("title", "prompt")
+	var default_name: String = title_str.to_snake_case() + ".json"
+	
+	# Create file dialog
+	var dialog := FileDialog.new()
+	dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.add_filter("*.json", "JSON Files")
+	dialog.current_file = default_name
+	dialog.title = "Export Prompt"
+	
+	dialog.file_selected.connect(func(path: String):
+		export_prompt(_selected_prompt_id, path)
+		dialog.queue_free()
+	)
+	dialog.canceled.connect(dialog.queue_free)
+	
+	add_child(dialog)
+	dialog.popup_centered_ratio(0.5)
+
+
+func _on_import_pressed() -> void:
+	var dialog := FileDialog.new()
+	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.add_filter("*.json", "JSON Files")
+	dialog.title = "Import Prompt"
+	
+	dialog.file_selected.connect(func(path: String):
+		import_prompt(path)
+		dialog.queue_free()
+	)
+	dialog.canceled.connect(dialog.queue_free)
+	
+	add_child(dialog)
+	dialog.popup_centered_ratio(0.5)
+
+
 func _on_archived_toggled(pressed: bool) -> void:
 	_save_if_dirty()
 	_showing_archived = pressed
@@ -662,9 +860,9 @@ func _on_archived_toggled(pressed: bool) -> void:
 func _on_settings_pressed() -> void:
 	settings_requested.emit()
 	if Engine.is_editor_hint():
-		# Show notification about where settings are
+		# Show notification about where settings are (extended duration)
 		_show_auto_save_status("Editor → Editor Settings → Plugin → Codot", Color(0.5, 0.7, 0.9))
-		await get_tree().create_timer(4.0).timeout
+		await get_tree().create_timer(SETTINGS_MESSAGE_DURATION).timeout
 		if not _is_dirty:
 			_show_auto_save_status("", Color(0.5, 0.5, 0.5))
 
@@ -672,6 +870,7 @@ func _on_settings_pressed() -> void:
 func _on_reconnect_pressed() -> void:
 	_websocket.close()
 	_is_connected = false
+	_connection_attempts = 0
 	_update_status(false, "Reconnecting...")
 	_try_connect()
 
@@ -706,10 +905,14 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 	
+	# Check if keyboard shortcuts are enabled
+	if not _get_setting("keyboard_shortcuts_enabled", true):
+		return
+	
 	if event is InputEventKey and event.pressed:
 		# Ctrl+Enter to send
 		if event.keycode == KEY_ENTER and event.ctrl_pressed:
-			if _selected_prompt_id != "" and _is_connected:
+			if _selected_prompt_id != "":
 				_on_send_pressed()
 				get_viewport().set_input_as_handled()
 		# Ctrl+N to create new prompt
@@ -796,5 +999,17 @@ func show_send_success() -> void:
 	# Auto-archive after successful send
 	if _selected_prompt_id != "" and _get_setting("auto_archive_on_send", true):
 		_archive_prompt(_selected_prompt_id)
+
+
+## Get connection diagnostics for debugging
+func get_connection_diagnostics() -> Dictionary:
+	return {
+		"is_connected": _is_connected,
+		"connection_attempts": _connection_attempts,
+		"last_error": _last_connection_error,
+		"websocket_valid": is_instance_valid(_websocket),
+		"websocket_state": _websocket.get_ready_state() if is_instance_valid(_websocket) else -1,
+		"vscode_port": _get_setting("vscode_port", DEFAULT_VSCODE_PORT)
+	}
 
 #endregion

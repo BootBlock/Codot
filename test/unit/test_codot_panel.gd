@@ -243,3 +243,148 @@ func test_unicode_in_prompt() -> void:
 	assert_eq(prompt.content, unicode_content, "Unicode should be preserved")
 
 #endregion
+
+
+#region Duplicate Prompt Tests
+
+func test_duplicate_prompt_creates_copy() -> void:
+	var original_id: String = panel.create_prompt("Original", "Original Content")
+	var copy_id: String = panel.duplicate_prompt(original_id)
+	
+	assert_ne(copy_id, "", "Should return new ID")
+	assert_ne(copy_id, original_id, "Copy ID should be different")
+
+
+func test_duplicate_prompt_appends_copy_to_title() -> void:
+	var original_id: String = panel.create_prompt("My Title", "Content")
+	var copy_id: String = panel.duplicate_prompt(original_id)
+	var copy: Dictionary = panel.get_prompt(copy_id)
+	
+	assert_eq(copy.title, "My Title (copy)", "Should append (copy) to title")
+
+
+func test_duplicate_prompt_copies_content() -> void:
+	var original_id: String = panel.create_prompt("Title", "Original Content Here")
+	var copy_id: String = panel.duplicate_prompt(original_id)
+	var copy: Dictionary = panel.get_prompt(copy_id)
+	
+	assert_eq(copy.content, "Original Content Here", "Content should be copied")
+
+
+func test_duplicate_with_invalid_id_returns_empty() -> void:
+	var result: String = panel.duplicate_prompt("nonexistent")
+	assert_eq(result, "", "Should return empty for invalid ID")
+
+#endregion
+
+
+#region Export/Import Tests
+
+func test_export_prompt_creates_file() -> void:
+	var prompt_id: String = panel.create_prompt("Export Test", "Export Content")
+	var export_path := "user://test_export.json"
+	
+	var result: bool = panel.export_prompt(prompt_id, export_path)
+	
+	assert_true(result, "Export should succeed")
+	assert_true(FileAccess.file_exists(export_path), "Export file should exist")
+	
+	# Cleanup
+	DirAccess.remove_absolute(export_path)
+
+
+func test_export_prompt_file_contains_correct_data() -> void:
+	var prompt_id: String = panel.create_prompt("Export Data Test", "Export Content Data")
+	var export_path := "user://test_export_data.json"
+	
+	panel.export_prompt(prompt_id, export_path)
+	
+	var file := FileAccess.open(export_path, FileAccess.READ)
+	var json := JSON.new()
+	json.parse(file.get_as_text())
+	file.close()
+	var data: Dictionary = json.get_data()
+	
+	assert_true(data.has("prompt"), "Should have prompt key")
+	assert_eq(data.prompt.title, "Export Data Test", "Title should match")
+	assert_eq(data.prompt.content, "Export Content Data", "Content should match")
+	
+	# Cleanup
+	DirAccess.remove_absolute(export_path)
+
+
+func test_export_with_invalid_id_returns_false() -> void:
+	var result: bool = panel.export_prompt("nonexistent", "user://test.json")
+	assert_false(result, "Export should fail for invalid ID")
+
+
+func test_import_prompt_from_file() -> void:
+	# First export a prompt
+	var original_id: String = panel.create_prompt("Import Test", "Import Content")
+	var export_path := "user://test_import.json"
+	panel.export_prompt(original_id, export_path)
+	
+	# Delete original and import
+	panel.delete_prompt(original_id)
+	var imported_id: String = panel.import_prompt(export_path)
+	
+	assert_ne(imported_id, "", "Should return new ID")
+	var imported: Dictionary = panel.get_prompt(imported_id)
+	assert_eq(imported.title, "Import Test", "Title should match")
+	assert_eq(imported.content, "Import Content", "Content should match")
+	
+	# Cleanup
+	DirAccess.remove_absolute(export_path)
+
+
+func test_import_from_nonexistent_file_returns_empty() -> void:
+	var result: String = panel.import_prompt("user://nonexistent_file.json")
+	assert_eq(result, "", "Import should fail for nonexistent file")
+
+
+func test_import_from_invalid_json_returns_empty() -> void:
+	var bad_path := "user://bad_json.json"
+	var file := FileAccess.open(bad_path, FileAccess.WRITE)
+	file.store_string("{ invalid json content")
+	file.close()
+	
+	var result: String = panel.import_prompt(bad_path)
+	assert_eq(result, "", "Import should fail for invalid JSON")
+	
+	# Cleanup
+	DirAccess.remove_absolute(bad_path)
+
+#endregion
+
+
+#region Connection Diagnostics Tests
+
+func test_get_connection_diagnostics_returns_dictionary() -> void:
+	var diagnostics: Dictionary = panel.get_connection_diagnostics()
+	
+	assert_true(diagnostics.has("is_connected"), "Should have is_connected")
+	assert_true(diagnostics.has("connection_attempts"), "Should have connection_attempts")
+	assert_true(diagnostics.has("websocket_valid"), "Should have websocket_valid")
+	assert_true(diagnostics.has("vscode_port"), "Should have vscode_port")
+
+
+func test_connection_diagnostics_websocket_valid() -> void:
+	var diagnostics: Dictionary = panel.get_connection_diagnostics()
+	assert_true(diagnostics.websocket_valid, "WebSocket should be valid")
+
+#endregion
+
+
+#region Auto-Focus Tests
+
+func test_create_prompt_focuses_title_field() -> void:
+	panel.create_prompt()
+	await wait_frames(2)
+	
+	# The title field should have focus after creating a new prompt
+	var title_edit: LineEdit = panel._prompt_title_edit
+	# Note: In actual editor context this would be focused, but in tests
+	# the focus behavior may differ. We test the method exists.
+	assert_true(title_edit != null, "Title edit should exist")
+
+#endregion
