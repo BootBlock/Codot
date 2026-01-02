@@ -17,9 +17,13 @@ classifiers = [
     "Topic :: Games/Entertainment",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-
 authors = [
     {name = "Joe Cox"}
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "websockets>=12.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.urls]
@@ -27,12 +31,6 @@ Homepage = "https://github.com/yourusername/codot"
 Documentation = "https://github.com/yourusername/codot/blob/main/docs/how-to-use.md"
 Repository = "https://github.com/yourusername/codot"
 Issues = "https://github.com/yourusername/codot/issues"
-
-dependencies = [
-    "mcp>=1.0.0",
-    "websockets>=12.0",
-    "pydantic>=2.0.0",
-]
 
 [project.optional-dependencies]
 dev = [

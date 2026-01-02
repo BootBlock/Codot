@@ -108,6 +108,87 @@ Codot bridges AI coding assistants with Godot Engine through the Model Context P
 
 3. **Restart VS Code** to load the MCP configuration.
 
+### Step 4: Using Codot in Multiple Projects
+
+MCP servers are configured **per-workspace** in VS Code. If you want to use Codot in multiple Godot projects, you have two options:
+
+#### Option A: Global Installation (Recommended)
+
+Install the Codot MCP server globally so any project can use it:
+
+1. **Install the package globally**:
+
+   ```powershell
+   # Navigate to the Codot MCP server directory
+   cd P:\Source\Godot\Codot\mcp-server
+   
+   # Install as an editable package (or use 'pip install .' for non-editable)
+   pip install -e .
+   ```
+
+2. **In each project**, create `.vscode/mcp.json`:
+
+   ```json
+   {
+     "mcp": {
+       "servers": {
+         "codot": {
+           "command": "python",
+           "args": ["-m", "codot.server"],
+           "env": {
+             "CODOT_HOST": "127.0.0.1",
+             "CODOT_PORT": "6850"
+           }
+         }
+       }
+     }
+   }
+   ```
+
+3. **Reload VS Code** in that workspace (`Ctrl+Shift+P` → "Developer: Reload Window")
+
+4. The AI should now see the `godot_*` MCP tools
+
+#### Option B: Point to Codot Installation
+
+If you don't want to install globally, point directly to the Codot source:
+
+1. **In your other project**, create `.vscode/mcp.json`:
+
+   ```json
+   {
+     "mcp": {
+       "servers": {
+         "codot": {
+           "command": "python",
+           "args": ["-m", "codot.server"],
+           "cwd": "P:/Source/Godot/Codot/mcp-server",
+           "env": {
+             "CODOT_HOST": "127.0.0.1",
+             "CODOT_PORT": "6850"
+           }
+         }
+       }
+     }
+   }
+   ```
+
+   **Note:** Replace the `cwd` path with the absolute path to your Codot `mcp-server` folder.
+
+2. **Reload VS Code** in that workspace
+
+#### Verifying the Setup
+
+After configuring, ask the AI:
+- "What Godot tools do you have access to?"
+- "Ping Godot to check the connection"
+
+If the AI says it doesn't have access to MCP tools, double-check:
+- The `.vscode/mcp.json` file exists in the workspace root
+- The JSON syntax is valid (no trailing commas, correct brackets)
+- You've reloaded the VS Code window after creating the file
+- Python and the codot package are accessible from your PATH
+
 ## Usage
 
 ### Starting a Session
