@@ -20,9 +20,9 @@ This file provides context and instructions for AI coding agents working on the 
 | Component | Location | Language | Purpose |
 |-----------|----------|----------|---------|
 | Godot Plugin | `addons/codot/` | GDScript | Editor plugin with WebSocket server |
-| MCP Server | `mcp-src/codot/` | Python | MCP protocol bridge to Godot |
+| MCP Server | `mcp-server/codot/` | Python | MCP protocol bridge to Godot |
 | Tests (GUT) | `test/` | GDScript | Godot unit tests |
-| Tests (pytest) | `mcp-src/tests/` | Python | Python unit tests |
+| Tests (pytest) | `mcp-server/tests/` | Python | Python unit tests |
 
 ## Development Guidelines
 
@@ -66,15 +66,52 @@ async def method_name(self, param: str) -> dict[str, Any]:
 
 ### Adding New Commands
 
-To add a new command, update these files:
+Commands are organized into modules under `addons/codot/commands/`. To add a new command:
 
-1. **`addons/codot/command_handler.gd`**:
+1. **Find the appropriate module** (or create a new one):
+   - `commands_status.gd` - Status, play, stop, debug output
+   - `commands_scene_tree.gd` - Scene tree inspection
+   - `commands_file.gd` - File read/write/list operations
+   - `commands_scene.gd` - Scene open/save/create
+   - `commands_editor.gd` - Editor selection and settings
+   - `commands_script.gd` - Script editing and errors
+   - `commands_node.gd` - Node manipulation
+   - `commands_input.gd` - Input simulation
+   - `commands_gut.gd` - GUT testing framework
+   - `commands_advanced.gd` - Signals, methods, groups
+   - `commands_resource.gd` - Resources, animations, audio
+   - `commands_debug.gd` - Performance, memory, advanced debug
+   - `commands_plugin.gd` - Plugin management
+
+2. **Add the command function** to the module:
+   - Use `cmd_` prefix (not `_cmd_`)
+   - Extend `command_base.gd` for utilities
+
+3. **Register in `command_handler.gd`**:
    - Add case to `handle_command()` match statement
-   - Implement `_cmd_your_command()` function with docstring
+   - Delegate to the appropriate module
 
-2. **`mcp-src/codot/commands.py`**:
+4. **Update `mcp-server/codot/commands.py`**:
    - Add `CommandDefinition` to `COMMANDS` dictionary
    - Include description and JSON Schema for parameters
+
+#### Command Module Pattern
+
+```gdscript
+## Module description
+extends "command_base.gd"
+
+## Command description.
+func cmd_example(cmd_id: Variant, params: Dictionary) -> Dictionary:
+    var result = _require_scene(cmd_id)  # Use base class utilities
+    if result.has("error"):
+        return result
+    
+    var root = _get_scene_root()
+    # ... command logic ...
+    
+    return _success(cmd_id, {"result": value})
+```
 
 ### Command Response Format
 
@@ -111,17 +148,161 @@ Or on error:
 | `NODE_NOT_FOUND` | Node path doesn't exist |
 | `INVALID_TYPE` | Invalid node/resource type |
 | `FILE_NOT_FOUND` | File doesn't exist |
+| `DIALOG_OPEN` | Modal dialog blocking operation |
+
+## AI Agent Best Practices & Common Pitfalls
+
+### ⚠️ CRITICAL: Avoid These Common Issues
+
+#### 1. Python Inline Code Syntax Errors
+
+**NEVER** use complex inline Python with `python -c "..."` - it causes `SyntaxError: unterminated string literal`:
+
+```python
+# ❌ BAD - Will fail with syntax errors due to escaping issues
+python -c "import asyncio; print(f'Result: {result.get(\"key\")}')"
+
+# ✅ GOOD - Create a script file instead
+create_file("test_script.py", content)
+run_in_terminal("python test_script.py")
+```
+
+**Why this fails:**
+- Nested quotes require complex escaping
+- F-strings with dictionary access (`{result.get("key")}`) are especially problematic  
+- Multi-line code in `-c` flags is error-prone
+- Terminal escaping varies by platform (Windows vs Unix)
+
+**Solution:** Always create a temporary `.py` file for anything beyond trivial one-liners.
+
+#### 2. Modal Dialog Detection
+
+Commands can fail silently if a modal dialog is open in Godot (e.g., "There is no defined scene to run").
+
+**Before running game-related commands:**
+```
+1. godot_get_open_dialogs → Check for blocking dialogs
+2. If dialog found: godot_dismiss_dialog(action="ok") 
+3. Then proceed with godot_play, etc.
+```
+
+#### 3. Function Signature Consistency
+
+All command functions MUST accept both `cmd_id` and `params`:
+
+```gdscript
+# ❌ BAD - Missing params parameter
+func cmd_example(cmd_id: Variant) -> Dictionary:
+
+# ✅ GOOD - Use _params if not used
+func cmd_example(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+```
+
+#### 4. UI Elements in Code vs Scene Files
+
+**NEVER** create UI elements (Button, Label, VBox, etc.) directly in GDScript code:
+
+```gdscript
+# ❌ BAD - UI created in code
+var button = Button.new()
+button.text = "Click me"
+add_child(button)
+
+# ✅ GOOD - Load UI from scene file
+var dock_scene = preload("res://addons/codot/ai_chat_dock.tscn")
+var dock = dock_scene.instantiate()
+add_control_to_dock(DOCK_SLOT_LEFT_BR, dock)
+```
+
+**Why:**
+- Scene files are easier to edit visually
+- Reduces code complexity
+- Better separation of concerns
+- Easier to maintain and modify layout
+
+#### 5. WebSocket API Compatibility
+
+The `websockets` Python library changed its API in version 15.0+:
+
+```python
+# ❌ OLD API (deprecated)
+self.websocket.open  # AttributeError in v15+
+
+# ✅ NEW API
+self.websocket.state.name == "OPEN"
+```
+
+### Robust Script Generation Guidelines
+
+When generating scripts that interact with Godot:
+
+1. **Check editor state first:**
+   ```
+   godot_get_editor_state  → Verify expected state
+   godot_get_open_dialogs  → Check for blocking dialogs
+   ```
+
+2. **Validate preconditions:**
+   - Is a scene open? (`get_scene_tree`)
+   - Is the game already playing? (`is_playing`)
+   - Does the target file exist? (`file_exists`)
+
+3. **Handle all error responses:**
+   ```python
+   result = await client.send_command("some_command", params)
+   if not result.get("success"):
+       error = result.get("error", {})
+       handle_error(error.get("code"), error.get("message"))
+   ```
+
+4. **Use timeouts appropriately:**
+   - Quick commands: 5 seconds
+   - File operations: 10 seconds
+   - Game execution: 30-60 seconds
+   - GUT test runs: 60-120 seconds
+
+### Codebase Validation
+
+Run the validation script before committing changes:
+
+```bash
+python scripts/validate-codebase.py --verbose
+```
+
+This checks for:
+- UI elements created in code (should be in .tscn)
+- Command signature consistency
+- Missing command registrations
+- Python/GDScript cross-reference issues
 
 ## File Structure Reference
 
 ```
 codot/
-├── addons/codot/           # Godot editor plugin
+├── addons/codot/               # Godot editor plugin (SOURCE OF TRUTH)
 │   ├── plugin.cfg              # Plugin metadata
-│   ├── codot.gd           # Main EditorPlugin class
+│   ├── codot.gd                # Main EditorPlugin class
 │   ├── websocket_server.gd     # WebSocket server
-│   └── command_handler.gd      # Command routing & implementation
-├── mcp-src/                    # Python MCP server
+│   ├── command_handler.gd      # Command routing (delegates to modules)
+│   ├── ai_chat_dock.gd         # AI prompt dock (WebSocket to VS Code)
+│   ├── debugger_plugin.gd      # Editor debugger for capturing output
+│   ├── output_capture.gd       # Game-side output capture (autoload)
+│   └── commands/               # Command module directory
+│       ├── command_base.gd     # Base class with common utilities
+│       ├── commands_status.gd  # Status, play, stop, debug
+│       ├── commands_scene_tree.gd # Scene tree inspection
+│       ├── commands_file.gd    # File operations
+│       ├── commands_scene.gd   # Scene open/save/create
+│       ├── commands_editor.gd  # Editor selection/settings
+│       ├── commands_script.gd  # Script editing
+│       ├── commands_node.gd    # Node manipulation
+│       ├── commands_input.gd   # Input simulation
+│       ├── commands_gut.gd     # GUT testing
+│       ├── commands_advanced.gd # Signals/methods/groups
+│       ├── commands_resource.gd # Resources/animations/audio
+│       ├── commands_debug.gd   # Performance/debug/screenshots
+│       └── commands_plugin.gd  # Plugin management
+├── mcp-server/                 # Python MCP server
 │   ├── pyproject.toml          # Python package config
 │   ├── codot/
 │   │   ├── __init__.py
@@ -129,8 +310,15 @@ codot/
 │   │   ├── godot_client.py     # WebSocket client
 │   │   └── commands.py         # Command definitions
 │   └── tests/                  # pytest tests
+├── vscode-extension/           # VS Code Codot Bridge extension
+│   ├── package.json            # Extension manifest
+│   ├── src/extension.ts        # Bridge server (receives AI prompts)
+│   └── README.md               # Extension documentation
 ├── test/                       # GUT tests for Godot
-├── .vscode/mcp.json           # VS Code MCP configuration
+│   ├── unit/                   # Unit tests
+│   ├── integration/            # Integration tests
+│   └── scenes/                 # Test scenes
+├── .vscode/mcp.json            # VS Code MCP configuration
 └── docs/                       # Documentation
 ```
 
@@ -171,7 +359,7 @@ godot -d -s addons/gut/gut_cmdln.gd -gdir=res://test/ -gexit
 
 ### Running Python Tests
 ```bash
-cd mcp-src
+cd mcp-server
 pip install -e ".[dev]"
 pytest
 ```
@@ -187,7 +375,7 @@ pytest
 
 - **Godot**: 4.3+ (tested with 4.6-beta)
 - **Python**: 3.10+
-- **Dependencies**: See `mcp-src/pyproject.toml`
+- **Dependencies**: See `mcp-server/pyproject.toml`
 
 ## Quick Command Reference
 

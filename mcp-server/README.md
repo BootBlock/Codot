@@ -7,7 +7,7 @@ Python MCP server that enables AI agents (like GitHub Copilot, Claude, etc.) to 
 ### From Source
 
 ```bash
-cd mcp-src
+cd mcp-server
 pip install -e .
 ```
 

@@ -4,7 +4,7 @@ This is the Godot 4.x plugin component of Codot, which enables AI agents to cont
 
 ## Installation
 
-### Option 1: Copy to Your Project
+### Option 1: Copy to Your Project (Recommended)
 1. Copy the entire `addons/codot` folder to your project's `addons/` directory
 2. In Godot, go to **Project → Project Settings → Plugins**
 3. Enable "Codot"
@@ -12,10 +12,10 @@ This is the Godot 4.x plugin component of Codot, which enables AI agents to cont
 ### Option 2: Symlink (for development)
 ```bash
 # Windows (PowerShell as Admin)
-New-Item -ItemType Junction -Path "your_project/addons/codot" -Target "path/to/godot-plugin-src/addons/codot"
+New-Item -ItemType Junction -Path "your_project/addons/codot" -Target "path/to/codot/addons/codot"
 
 # Linux/macOS
-ln -s /path/to/godot-plugin-src/addons/codot your_project/addons/codot
+ln -s /path/to/codot/addons/codot your_project/addons/codot
 ```
 
 ## Configuration

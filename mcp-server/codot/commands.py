@@ -511,6 +511,36 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "get_open_dialogs": CommandDefinition(
+        description="Detect if any modal dialog is currently open in the Godot editor. Use this before running commands that might fail due to open dialogs (e.g., 'There is no defined scene to run' error dialog).",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "dismiss_dialog": CommandDefinition(
+        description="Dismiss/close an open dialog in the Godot editor. Use after detecting an open dialog with get_open_dialogs.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Action to take: 'ok' to confirm, 'cancel' to dismiss",
+                    "enum": ["ok", "cancel"],
+                    "default": "ok",
+                },
+                "dialog_name": {
+                    "type": "string",
+                    "description": "Optional: specific dialog name to close",
+                    "default": "",
+                },
+            },
+            "required": [],
+        },
+    ),
+    
     # ========================================================================
     # NODE MANIPULATION
     # ========================================================================

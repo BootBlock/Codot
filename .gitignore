@@ -1,3 +1,7 @@
+# =============================================================================
+# Godot
+# =============================================================================
+
 # Godot 4+ specific ignores
 .godot/
 .nomedia
@@ -14,3 +18,114 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# =============================================================================
+# Python
+# =============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# =============================================================================
+# Node.js / VS Code Extension
+# =============================================================================
+
+# Dependencies
+node_modules/
+
+# Build output
+out/
+*.vsix
+
+# TypeScript
+*.tsbuildinfo
+
+# npm
+npm-debug.log*
+
+# =============================================================================
+# IDEs and Editors
+# =============================================================================
+
+# VS Code (keep .vscode/mcp.json, ignore user settings)
+.vscode/*
+!.vscode/mcp.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# JetBrains IDEs
+.idea/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# OS Generated
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# =============================================================================
+# Project Specific
+# =============================================================================
+
+# Temporary test files
+*.tmp
+*.bak
+
+# Local configuration overrides
+*.local

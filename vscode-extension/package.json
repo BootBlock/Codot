@@ -1,9 +1,28 @@
 {
   "name": "codot-bridge",
   "displayName": "Codot Bridge",
-  "description": "Bridge between Godot's Codot plugin and VS Code AI assistants",
+  "description": "Bridge between Godot's Codot plugin and VS Code AI assistants. Receive prompts from Godot and forward them to GitHub Copilot.",
   "version": "0.1.0",
   "publisher": "codot",
+  "author": {
+    "name": "Joe Cox"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/codot"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/codot/issues"
+  },
+  "homepage": "https://github.com/yourusername/codot#readme",
+  "keywords": [
+    "godot",
+    "ai",
+    "copilot",
+    "mcp",
+    "game-development"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },

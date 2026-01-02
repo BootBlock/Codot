@@ -52,7 +52,7 @@ Codot bridges AI coding assistants with Godot Engine through the Model Context P
 1. **Navigate to the MCP source directory**:
 
    ```bash
-   cd path/to/codot/mcp-src
+   cd path/to/codot/mcp-server
    ```
 
 2. **Install the Python package**:
@@ -224,7 +224,7 @@ If port 6850 is in use, you can change it:
 
 ```bash
 # Test the connection manually:
-cd mcp-src
+cd mcp-server
 python test_connection.py
 ```
 
@@ -238,7 +238,7 @@ python test_connection.py
 
 ```bash
 # Reinstall the package:
-cd mcp-src
+cd mcp-server
 pip uninstall codot
 pip install -e .
 ```
@@ -271,7 +271,7 @@ To update Codot:
 1. **Update the Godot plugin**: Replace `addons/codot/` with the new version
 2. **Update the MCP server**:
    ```bash
-   cd mcp-src
+   cd mcp-server
    git pull
    pip install -e .
    ```

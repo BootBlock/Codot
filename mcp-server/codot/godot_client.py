@@ -19,7 +19,7 @@ import uuid
 from typing import Any, Callable, Optional
 
 import websockets
-from websockets.client import WebSocketClientProtocol
+from websockets import ClientConnection
 
 logger = logging.getLogger("codot.client")
 
@@ -54,7 +54,7 @@ class GodotClient:
         """
         self.host = host
         self.port = port
-        self.websocket: Optional[WebSocketClientProtocol] = None
+        self.websocket: Optional[ClientConnection] = None
         self._pending_requests: dict[str, asyncio.Future] = {}
         self._receive_task: Optional[asyncio.Task] = None
         self._event_handlers: dict[str, list[Callable]] = {}
@@ -67,7 +67,14 @@ class GodotClient:
         Returns:
             True if the WebSocket connection is open, False otherwise.
         """
-        return self.websocket is not None and self.websocket.open
+        if self.websocket is None:
+            return False
+        try:
+            # websockets 15.0+ uses state.name
+            return self.websocket.state.name == "OPEN"
+        except AttributeError:
+            # Fallback for older versions
+            return getattr(self.websocket, "open", False)
 
     @property
     def uri(self) -> str:

@@ -126,7 +126,8 @@ class TestGodotClientProperties:
         """is_connected should be False when websocket is closed."""
         client = GodotClient()
         mock_ws = MagicMock()
-        mock_ws.open = False
+        # websockets 15.0+ uses state.name
+        mock_ws.state.name = "CLOSED"
         client.websocket = mock_ws
         assert client.is_connected is False
 
@@ -134,6 +135,7 @@ class TestGodotClientProperties:
         """is_connected should be True when websocket is open."""
         client = GodotClient()
         mock_ws = MagicMock()
-        mock_ws.open = True
+        # websockets 15.0+ uses state.name
+        mock_ws.state.name = "OPEN"
         client.websocket = mock_ws
         assert client.is_connected is True
