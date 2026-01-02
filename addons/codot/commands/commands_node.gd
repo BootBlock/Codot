@@ -414,3 +414,166 @@ func _value_to_json(value: Variant) -> Variant:
 		return value
 	else:
 		return str(value)
+
+
+## Instantiate a scene as a child of a node.
+## [br][br]
+## [param params]:
+## - 'scene' (String, required): Path to the scene file to instantiate.
+## - 'parent' (String, optional): Parent node path (default ".").
+## - 'name' (String, optional): Name for the instantiated node.
+func cmd_instantiate_scene(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var scene_path: String = params.get("scene", "")
+	var parent_path: String = params.get("parent", ".")
+	var node_name: String = params.get("name", "")
+	
+	if scene_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'scene' parameter")
+	
+	# Load the scene
+	if not ResourceLoader.exists(scene_path):
+		return _error(cmd_id, "SCENE_NOT_FOUND", "Scene file not found: " + scene_path)
+	
+	var packed_scene: PackedScene = load(scene_path)
+	if packed_scene == null:
+		return _error(cmd_id, "LOAD_FAILED", "Failed to load scene: " + scene_path)
+	
+	# Get root and parent
+	var root = _get_scene_root()
+	var parent: Node = root if parent_path == "." else root.get_node_or_null(parent_path)
+	if parent == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Parent node not found: " + parent_path)
+	
+	# Instantiate the scene
+	var instance: Node = packed_scene.instantiate()
+	if instance == null:
+		return _error(cmd_id, "INSTANTIATE_FAILED", "Failed to instantiate scene: " + scene_path)
+	
+	# Set name if provided
+	if not node_name.is_empty():
+		instance.name = node_name
+	
+	# Add to parent
+	parent.add_child(instance)
+	instance.owner = root
+	
+	# Set owner for all descendants so they're saved with the scene
+	_set_owner_recursive(instance, root)
+	
+	return _success(cmd_id, {
+		"instantiated": true,
+		"scene": scene_path,
+		"name": instance.name,
+		"path": str(instance.get_path())
+	})
+
+
+## Get the script attached to a node.
+## [br][br]
+## [param params]: Must contain 'path' (String) - node path.
+func cmd_get_node_script(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	var root = _get_scene_root()
+	var node: Node = root if node_path == "." else root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	var script = node.get_script()
+	if script == null:
+		return _success(cmd_id, {
+			"node": node_path,
+			"has_script": false,
+			"script_path": "",
+			"script_class": ""
+		})
+	
+	var script_path: String = script.resource_path if script.resource_path else "(embedded)"
+	var script_class: String = script.get_class() if script is Script else "unknown"
+	
+	return _success(cmd_id, {
+		"node": node_path,
+		"has_script": true,
+		"script_path": script_path,
+		"script_class": script_class
+	})
+
+
+## Attach a script to a node.
+## [br][br]
+## [param params]:
+## - 'path' (String, required): Node path.
+## - 'script' (String, required): Script file path.
+func cmd_attach_script(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	var script_path: String = params.get("script", "")
+	
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	if script_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'script' parameter")
+	
+	var root = _get_scene_root()
+	var node: Node = root if node_path == "." else root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	# Load the script
+	if not ResourceLoader.exists(script_path):
+		return _error(cmd_id, "SCRIPT_NOT_FOUND", "Script file not found: " + script_path)
+	
+	var script = load(script_path)
+	if script == null:
+		return _error(cmd_id, "LOAD_FAILED", "Failed to load script: " + script_path)
+	
+	if not script is Script:
+		return _error(cmd_id, "INVALID_TYPE", "Resource is not a script: " + script_path)
+	
+	# Attach the script
+	node.set_script(script)
+	
+	return _success(cmd_id, {
+		"attached": true,
+		"node": node_path,
+		"script": script_path
+	})
+
+
+## Detach (remove) the script from a node.
+## [br][br]
+## [param params]: Must contain 'path' (String) - node path.
+func cmd_detach_script(cmd_id: Variant, params: Dictionary) -> Dictionary:
+	var result = _require_scene(cmd_id)
+	if result.has("error"):
+		return result
+	
+	var node_path: String = params.get("path", "")
+	if node_path.is_empty():
+		return _error(cmd_id, "MISSING_PARAM", "Missing 'path' parameter")
+	
+	var root = _get_scene_root()
+	var node: Node = root if node_path == "." else root.get_node_or_null(node_path)
+	if node == null:
+		return _error(cmd_id, "NODE_NOT_FOUND", "Node not found: " + node_path)
+	
+	var had_script: bool = node.get_script() != null
+	node.set_script(null)
+	
+	return _success(cmd_id, {
+		"detached": had_script,
+		"node": node_path
+	})

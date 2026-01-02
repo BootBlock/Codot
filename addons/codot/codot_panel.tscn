@@ -31,7 +31,7 @@ unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Connected to VS Code Copilot Bridge on port 6851"
 mouse_filter = 1
-theme_override_colors/font_color = Color(0.2, 0.8, 0.2, 1)
+theme_override_colors/font_color = Color(0.2, 0.8, 0.2, 0.6)
 text = "● Connected"
 
 [node name="HeaderSeparator" type="HSeparator" parent="MainVBox" unique_id=174022349]
@@ -116,8 +116,9 @@ theme_override_constants/separation = 4
 layout_mode = 2
 size_flags_vertical = 3
 bbcode_enabled = true
-text = "No prompts yet.
-Click '+ New' to create one."
+text = "[color=dimgray]No prompts yet.[/color]
+
+[color=dimgray]Click[/color]  [color=gray]+ New[/color]  [color=dimgray]to create one.[/color]"
 fit_content = true
 scroll_active = false
 horizontal_alignment = 1
@@ -149,19 +150,16 @@ tooltip_text = "Delete this prompt"
 disabled = true
 text = "🗑"
 
-[node name="PromptTextEdit" type="TextEdit" parent="MainVBox/EditorSection" unique_id=1529404115]
+[node name="PromptTextEdit" type="TextEdit" parent="MainVBox/EditorSection" unique_id=562962817]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 size_flags_vertical = 3
-placeholder_text = "Select a prompt to edit...
+text = "Tips
 
-Tips:
-• Use '+ New' to create a prompt
-• Click a prompt in the list to select it
-• Changes are saved automatically"
-editable = false
-wrap_mode = 1
+Use + New to create a new prompt
+Click a prompt in the list above to select it
+Changes are saved automatically"
 
 [node name="ActionRow" type="HBoxContainer" parent="MainVBox/EditorSection" unique_id=370013521]
 layout_mode = 2
@@ -195,7 +193,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
 theme_override_font_sizes/font_size = 11
-text = "0 prompts"
+text = "0 prompts • 1 archived"
 
 [node name="FooterSpacer" type="Control" parent="MainVBox/Footer" unique_id=922746655]
 layout_mode = 2

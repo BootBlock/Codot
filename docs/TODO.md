@@ -64,21 +64,23 @@ This document tracks potential improvements, optimizations, and new features for
 
 - [x] **`duplicate_node`** - Clone a node with optional deep copy (already implemented)
 - [x] **`reparent_node`** - Move node to different parent (implemented as `move_node`)
-- [ ] **`instantiate_scene`** - Add scene as child (like Ctrl+Shift+A)
+- [x] **`instantiate_scene`** - Add scene as child (like Ctrl+Shift+A)
 - [ ] **`make_node_local`** - Convert inherited scene node to local
 - [ ] **`get_scene_diff`** - Compare scene to saved version
-- [ ] **`get_node_script`** - Get script attached to a node
-- [ ] **`attach_script`** - Attach a script to a node
+- [x] **`get_node_script`** - Get script attached to a node
+- [x] **`attach_script`** - Attach a script to a node
+- [x] **`detach_script`** - Detach (remove) a script from a node
 
 ### Debugging & Profiling
 
-- [ ] **`set_breakpoint`** - Add/remove script breakpoints
-- [ ] **`get_breakpoints`** - List all breakpoints
+- [x] **`set_breakpoint`** - Add/remove script breakpoints (opens script at line)
+- [x] **`get_breakpoints`** - List all breakpoints
+- [x] **`clear_breakpoints`** - Clear breakpoints
 - [x] **`get_performance_info`** - FPS, memory, draw calls (already implemented)
 - [ ] **`get_profiler_data`** - Detailed profiler information
 - [ ] **`get_orphan_nodes`** - Find memory leaks
 - [x] **`get_memory_info`** - Detailed memory breakdown (already implemented)
-- [ ] **`pause_game` / `resume_game`** - Pause running game
+- [x] **`pause_game` / `resume_game`** - Pause running game
 
 ### Animation
 
@@ -291,6 +293,31 @@ These are speculative features that need more research:
 ---
 
 ## ✅ Recently Completed
+
+- [x] **Empty Prompt Title Handling** (January 2025)
+  - Empty titles are stored as-is (not replaced with "Untitled Prompt")
+  - Display shows placeholder "Untitled Prompt" in dimmed style
+  - Sent messages omit title field when empty
+
+- [x] **Right-Click Context Menu** (January 2025)
+  - Copy Title, Copy Content, Copy Title + Content
+  - Duplicate, Export, Delete for active prompts
+  - Restore to Active, Delete Permanently for archived prompts
+
+- [x] **New Node Commands** (January 2025)
+  - `instantiate_scene` - Add scene as child (like Ctrl+Shift+A)
+  - `get_node_script` - Get script attached to a node
+  - `attach_script` - Attach a script to a node
+  - `detach_script` - Remove script from a node
+
+- [x] **New Script Commands** (January 2025)
+  - `get_breakpoints` - List all breakpoints
+  - `set_breakpoint` - Set/clear breakpoints (opens script at line)
+  - `clear_breakpoints` - Clear all breakpoints
+
+- [x] **Game Control Commands** (January 2025)
+  - `pause_game` - Pause the running game
+  - `resume_game` - Resume a paused game
 
 - [x] **Codot Prompt Panel** (v0.2.0) - Scene-based multi-prompt management
   - Create, edit, save, delete prompts

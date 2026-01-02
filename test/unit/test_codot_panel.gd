@@ -31,11 +31,11 @@ func test_create_prompt_returns_valid_id() -> void:
 	assert_eq(prompt_id.length(), 12, "ID should be 12 characters")
 
 
-func test_create_prompt_with_empty_title_uses_default() -> void:
+func test_create_prompt_with_empty_title_stores_empty() -> void:
 	var prompt_id: String = panel.create_prompt("", "Content")
 	var prompt: Dictionary = panel.get_prompt(prompt_id)
 	
-	assert_eq(prompt.title, "Untitled Prompt", "Empty title should use default")
+	assert_eq(prompt.title, "", "Empty title should be stored as empty")
 
 
 func test_create_prompt_adds_to_active_list() -> void:

@@ -164,6 +164,10 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _status.cmd_stop_scene(cmd_id, params)
 		"is_playing":
 			return _status.cmd_is_playing(cmd_id, params)
+		"pause_game":
+			return _status.cmd_pause_game(cmd_id, params)
+		"resume_game":
+			return _status.cmd_resume_game(cmd_id, params)
 		"get_debug_output":
 			return _status.cmd_get_debug_output(cmd_id, params)
 		"clear_debug_log":
@@ -288,6 +292,12 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _script.cmd_get_script_errors(cmd_id, params)
 		"open_script":
 			return _script.cmd_open_script(cmd_id, params)
+		"get_breakpoints":
+			return _script.cmd_get_breakpoints(cmd_id, params)
+		"set_breakpoint":
+			return _script.cmd_set_breakpoint(cmd_id, params)
+		"clear_breakpoints":
+			return _script.cmd_clear_breakpoints(cmd_id, params)
 		
 		# =================================================================
 		# Node Manipulation (commands_node.gd)
@@ -304,6 +314,14 @@ func handle_command(command: Dictionary) -> Dictionary:
 			return _node.cmd_move_node(cmd_id, params)
 		"duplicate_node":
 			return _node.cmd_duplicate_node(cmd_id, params)
+		"instantiate_scene":
+			return _node.cmd_instantiate_scene(cmd_id, params)
+		"get_node_script":
+			return _node.cmd_get_node_script(cmd_id, params)
+		"attach_script":
+			return _node.cmd_attach_script(cmd_id, params)
+		"detach_script":
+			return _node.cmd_detach_script(cmd_id, params)
 		
 		# =================================================================
 		# Input Simulation (commands_input.gd)

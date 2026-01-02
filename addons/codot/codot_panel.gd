@@ -82,6 +82,10 @@ var _ack_error: String = ""
 
 ## Test mode flag - when true, uses in-memory storage instead of file persistence
 var _test_mode: bool = false
+
+## Context menu for prompt items
+var _context_menu: PopupMenu = null
+var _context_menu_prompt_id: String = ""
 #endregion
 
 
@@ -129,6 +133,16 @@ func _setup_timers() -> void:
 	_auto_save_timer.one_shot = true
 	_auto_save_timer.timeout.connect(_on_auto_save_timer_timeout)
 	add_child(_auto_save_timer)
+	
+	# Context menu for prompt items
+	_setup_context_menu()
+
+
+## Create the right-click context menu for prompt items.
+func _setup_context_menu() -> void:
+	_context_menu = PopupMenu.new()
+	_context_menu.id_pressed.connect(_on_context_menu_id_pressed)
+	add_child(_context_menu)
 
 
 ## Timer callback for reconnection attempts.
@@ -354,9 +368,7 @@ func _perform_auto_save() -> void:
 	var title := _prompt_title_edit.text.strip_edges()
 	var content := _prompt_text_edit.text
 	
-	if title.is_empty():
-		title = "Untitled Prompt"
-	
+	# Store empty titles as-is (display uses placeholder)
 	if update_prompt(_selected_prompt_id, title, content):
 		_is_dirty = false
 		_show_auto_save_status("Saved ✓", Color(0.5, 0.5, 0.5))
@@ -386,7 +398,7 @@ func create_prompt(title: String = "", content: String = "") -> String:
 	var prompt_id := _generate_id()
 	var prompt := {
 		"id": prompt_id,
-		"title": title if title else "Untitled Prompt",
+		"title": title,  # Store empty titles as-is (UI displays placeholder)
 		"content": content,
 		"created_at": Time.get_datetime_string_from_system(),
 		"archived": false
@@ -630,13 +642,16 @@ func send_prompt(prompt_id: String) -> bool:
 				parts.append(post_prompt)
 			final_content = "\n\n".join(parts)
 	
+	# Build message - only include title if not empty
 	var message := {
 		"type": "prompt",
 		"prompt_id": prompt.id,
-		"title": prompt.title,
 		"content": final_content,
 		"timestamp": Time.get_datetime_string_from_system()
 	}
+	var prompt_title: String = prompt.get("title", "")
+	if not prompt_title.is_empty():
+		message["title"] = prompt_title
 	
 	var json_str := JSON.stringify(message)
 	
@@ -813,7 +828,10 @@ func _create_prompt_item(prompt: Dictionary) -> Control:
 	hbox.add_child(vbox)
 	
 	var title_label := Label.new()
-	title_label.text = prompt.get("title", "Untitled")
+	var display_title: String = prompt.get("title", "")
+	title_label.text = display_title if display_title else "Untitled Prompt"
+	if display_title.is_empty():
+		title_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	title_label.add_theme_font_size_override("font_size", 13)
 	vbox.add_child(title_label)
 	
@@ -1123,6 +1141,80 @@ func _on_prompt_item_input(event: InputEvent, prompt_id: String) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			_select_prompt(prompt_id)
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			_show_prompt_context_menu(prompt_id, event.global_position)
+
+
+## Show the context menu for a prompt item.
+func _show_prompt_context_menu(prompt_id: String, position: Vector2) -> void:
+	if not _context_menu:
+		return
+	
+	_context_menu_prompt_id = prompt_id
+	_context_menu.clear()
+	
+	var prompt := get_prompt(prompt_id)
+	if prompt.is_empty():
+		return
+	
+	# Copy options
+	_context_menu.add_item("Copy Title", 0)
+	_context_menu.add_item("Copy Content", 1)
+	_context_menu.add_item("Copy Title + Content", 2)
+	_context_menu.add_separator()
+	
+	# Action options based on whether archived or not
+	if _showing_archived:
+		_context_menu.add_item("Restore to Active", 10)
+		_context_menu.add_separator()
+		_context_menu.add_item("Delete Permanently", 11)
+	else:
+		_context_menu.add_item("Duplicate", 20)
+		_context_menu.add_item("Export...", 21)
+		_context_menu.add_separator()
+		_context_menu.add_item("Delete", 22)
+	
+	_context_menu.position = Vector2i(position)
+	_context_menu.popup()
+
+
+## Handle context menu item selection.
+func _on_context_menu_id_pressed(id: int) -> void:
+	var prompt := get_prompt(_context_menu_prompt_id)
+	if prompt.is_empty():
+		return
+	
+	match id:
+		0:  # Copy Title
+			var title: String = prompt.get("title", "")
+			DisplayServer.clipboard_set(title)
+			_show_auto_save_status("Title copied", Color(0.4, 0.7, 0.4))
+		1:  # Copy Content
+			var content: String = prompt.get("content", "")
+			DisplayServer.clipboard_set(content)
+			_show_auto_save_status("Content copied", Color(0.4, 0.7, 0.4))
+		2:  # Copy Title + Content
+			var title: String = prompt.get("title", "")
+			var content: String = prompt.get("content", "")
+			var combined := ""
+			if title:
+				combined = "# " + title + "\n\n"
+			combined += content
+			DisplayServer.clipboard_set(combined)
+			_show_auto_save_status("Copied to clipboard", Color(0.4, 0.7, 0.4))
+		10:  # Restore to Active
+			restore_prompt(_context_menu_prompt_id)
+		11:  # Delete Permanently
+			delete_prompt(_context_menu_prompt_id)
+			_show_auto_save_status("Deleted", Color(0.8, 0.4, 0.2))
+		20:  # Duplicate
+			duplicate_prompt(_context_menu_prompt_id)
+		21:  # Export
+			_on_export_pressed()
+		22:  # Delete
+			delete_prompt(_context_menu_prompt_id)
+	
+	_context_menu_prompt_id = ""
 
 
 func _on_restore_prompt(prompt_id: String) -> void:

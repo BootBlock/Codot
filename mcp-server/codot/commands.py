@@ -151,6 +151,24 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "pause_game": CommandDefinition(
+        description="Pause the running game. Requires a game to be running.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
+    "resume_game": CommandDefinition(
+        description="Resume a paused game. Requires a game to be running.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    ),
+    
     "get_debug_output": CommandDefinition(
         description="Get debug output from Godot's debugger plugin or log file. Returns errors, warnings, and log entries with structured data (file paths, line numbers). Use this to check for runtime errors after playing a scene.",
         input_schema={
@@ -700,6 +718,57 @@ COMMANDS: dict[str, CommandDefinition] = {
         },
     ),
     
+    "get_breakpoints": CommandDefinition(
+        description="Get all breakpoints set in scripts",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Optional: filter to a specific script path",
+                },
+            },
+            "required": [],
+        },
+    ),
+    
+    "set_breakpoint": CommandDefinition(
+        description="Set or clear a breakpoint in a script. Opens the script at the specified line.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the script file",
+                },
+                "line": {
+                    "type": "integer",
+                    "description": "Line number (1-based)",
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Whether to set (true) or clear (false) the breakpoint",
+                    "default": True,
+                },
+            },
+            "required": ["path", "line"],
+        },
+    ),
+    
+    "clear_breakpoints": CommandDefinition(
+        description="Clear all breakpoints in all scripts or a specific script",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Script path. If empty, clears all breakpoints",
+                },
+            },
+            "required": [],
+        },
+    ),
+    
     # ========================================================================
     # PROJECT INFO
     # ========================================================================
@@ -1000,6 +1069,76 @@ COMMANDS: dict[str, CommandDefinition] = {
                     "type": "string",
                     "description": "Name for the duplicate (optional, auto-generated if not provided)",
                     "default": "",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "instantiate_scene": CommandDefinition(
+        description="Instantiate a scene as a child of a node (like Ctrl+Shift+A in the editor)",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "scene": {
+                    "type": "string",
+                    "description": "Path to the scene file to instantiate (e.g., 'res://scenes/player.tscn')",
+                },
+                "parent": {
+                    "type": "string",
+                    "description": "Parent node path (default: '.' for scene root)",
+                    "default": ".",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for the instantiated node (optional, uses scene's root name if not provided)",
+                    "default": "",
+                },
+            },
+            "required": ["scene"],
+        },
+    ),
+    
+    "get_node_script": CommandDefinition(
+        description="Get the script attached to a node",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Node path",
+                },
+            },
+            "required": ["path"],
+        },
+    ),
+    
+    "attach_script": CommandDefinition(
+        description="Attach a script to a node",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Node path",
+                },
+                "script": {
+                    "type": "string",
+                    "description": "Script file path (e.g., 'res://scripts/player.gd')",
+                },
+            },
+            "required": ["path", "script"],
+        },
+    ),
+    
+    "detach_script": CommandDefinition(
+        description="Detach (remove) the script from a node",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Node path",
                 },
             },
             "required": ["path"],

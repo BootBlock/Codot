@@ -431,3 +431,103 @@ Codot provides 80+ commands organized into categories:
 | `enable_plugin` | Enable a plugin |
 | `disable_plugin` | Disable a plugin |
 | `reload_project` | Reload the project |
+
+---
+
+## VS Code Codot Bridge Extension
+
+The Codot Bridge VS Code extension enables sending prompts directly from Godot's Codot panel to VS Code's AI assistants (GitHub Copilot, Claude, etc.).
+
+### Installing the Extension
+
+1. **From pre-built VSIX**:
+   ```bash
+   code --install-extension vscode-extension/codot-bridge-0.1.0.vsix
+   ```
+
+2. **The extension auto-starts** when VS Code opens (if `codot-bridge.autoStart` is enabled).
+
+### Extension Commands
+
+| Command | Description |
+|---------|-------------|
+| `Codot: Start Bridge Server` | Start the WebSocket server |
+| `Codot: Stop Bridge Server` | Stop the WebSocket server |
+| `Codot: Show Bridge Status` | Display connection status |
+
+### Rebuilding the Extension
+
+If you modify the extension source code in `vscode-extension/`, you need to rebuild and reinstall it:
+
+#### Prerequisites
+
+```bash
+# Install Node.js dependencies (first time only)
+cd vscode-extension
+npm install
+
+# Install vsce globally for packaging (first time only)
+npm install -g @vscode/vsce
+```
+
+#### Compile and Reinstall
+
+```bash
+cd vscode-extension
+
+# Compile TypeScript to JavaScript
+npm run compile
+
+# Package as VSIX
+vsce package
+
+# Install the extension (--force overwrites existing)
+code --install-extension codot-bridge-0.1.0.vsix --force
+```
+
+#### Reload VS Code
+
+After installing the new extension, you need to reload the VS Code window:
+- Press `Ctrl+Shift+P` → "Developer: Reload Window"
+
+> ⚠️ **Warning**: Reloading VS Code will interrupt any in-progress AI chat or automation. Complete your current work before reloading.
+
+#### Quick Rebuild Script (PowerShell)
+
+Create a `rebuild-extension.ps1` script:
+
+```powershell
+# Navigate to extension directory
+Set-Location -Path "vscode-extension"
+
+# Compile TypeScript
+npm run compile
+
+# Package extension
+vsce package
+
+# Install extension
+code --install-extension codot-bridge-0.1.0.vsix --force
+
+Write-Host "Extension rebuilt and installed. Reload VS Code window to apply changes."
+```
+
+### Extension Configuration
+
+The extension supports these settings in VS Code:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `codot-bridge.autoStart` | `true` | Auto-start server on VS Code launch |
+| `codot-bridge.port` | `6851` | WebSocket server port |
+
+### Troubleshooting
+
+**Extension not loading prompts?**
+- Check that Godot's Codot plugin is connected (look for WebSocket status in Godot's Output)
+- Verify the port settings match between Godot and VS Code
+- Check VS Code's Output panel (select "Codot Bridge" from dropdown)
+
+**Prompts not showing in AI chat?**
+- Ensure you have an AI extension installed (GitHub Copilot, Copilot Chat, etc.)
+- Check that the AI extension is activated and signed in

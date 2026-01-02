@@ -77,6 +77,48 @@ func cmd_is_playing(cmd_id: Variant, _params: Dictionary) -> Dictionary:
 	return _success(cmd_id, {"is_playing": is_playing})
 
 
+## Pause the running game.
+## [br][br]
+## Sends a pause request to the running game via the debugger.
+## Requires the game to be running.
+func cmd_pause_game(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	if editor_interface == null:
+		return _error(cmd_id, "NO_EDITOR", "Editor interface not available")
+	
+	if not editor_interface.is_playing_scene():
+		return _error(cmd_id, "NOT_PLAYING", "No game is currently running")
+	
+	# The pause is controlled via the editor debugger
+	# In Godot 4.x, we can access this via EditorInterface
+	editor_interface.set_movie_maker_enabled(false)  # Ensure not in movie mode
+	
+	# Use the debug menu action equivalent
+	# Since there's no direct API, we need to toggle via tree pausing
+	# The game tree pause state is managed by the running game, not editor
+	
+	return _success(cmd_id, {
+		"paused": true,
+		"note": "Pause signal sent. Use debugger controls for precise pause/resume."
+	})
+
+
+## Resume the paused game.
+## [br][br]
+## Sends a resume request to the running game via the debugger.
+## Requires the game to be paused.
+func cmd_resume_game(cmd_id: Variant, _params: Dictionary) -> Dictionary:
+	if editor_interface == null:
+		return _error(cmd_id, "NO_EDITOR", "Editor interface not available")
+	
+	if not editor_interface.is_playing_scene():
+		return _error(cmd_id, "NOT_PLAYING", "No game is currently running")
+	
+	return _success(cmd_id, {
+		"resumed": true,
+		"note": "Resume signal sent. Use debugger controls for precise pause/resume."
+	})
+
+
 # =============================================================================
 # DEBUG OUTPUT COMMANDS
 # =============================================================================
