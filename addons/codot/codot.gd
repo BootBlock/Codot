@@ -10,14 +10,12 @@ var _server: Node
 var _handler: Node
 var _debugger_plugin: EditorDebuggerPlugin
 var _dock: Control
-var _settings: CodotSettingsClass
 var _editor_settings: EditorSettings
 
 
 ## Initializes the plugin, starts WebSocket server, and adds the dock panel.
 func _enter_tree() -> void:
-	# Initialize settings first (so logging knows if it's enabled)
-	_settings = CodotSettingsClass.new()
+	# Get editor settings for live updates
 	_editor_settings = EditorInterface.get_editor_settings()
 	
 	# Connect to settings changes for live updates
@@ -47,7 +45,7 @@ func _enter_tree() -> void:
 	_server.command_received.connect(_on_command_received)
 	
 	# Start the server
-	var port := _settings.get_setting("websocket_port")
+	var port: int = CodotSettingsClass.get_setting("websocket_port", 6850)
 	_server.start(port)
 	_log("WebSocket server started on port %d" % port)
 	
@@ -121,7 +119,7 @@ func _on_send_to_ai_requested(prompt_title: String, prompt_body: String) -> void
 	_log("Sending prompt to AI: %s" % prompt_title)
 	
 	# Check if VS Code extension WebSocket server is running
-	var vscode_port := _settings.get_setting("vscode_port")
+	var vscode_port: int = CodotSettingsClass.get_setting("vscode_port", 6851)
 	
 	# Create a WebSocket client to send the prompt
 	var ws := WebSocketPeer.new()
@@ -185,7 +183,7 @@ func _on_settings_changed() -> void:
 	
 	# Update WebSocket port if changed (would require restart though)
 	# For now, just log that settings changed
-	if _settings.is_feature_enabled("debug_logging"):
+	if CodotSettingsClass.is_feature_enabled("debug_logging"):
 		print("[Codot] Settings updated")
 
 
@@ -218,7 +216,7 @@ func _update_dock_status() -> void:
 	if _dock.has_method("update_connection_status"):
 		var connected: bool = _server.get_client_count() > 0 if _server else false
 		var client_count: int = _server.get_client_count() if _server else 0
-		var port: int = _settings.get_setting("websocket_port") if _settings else 6850
+		var port: int = CodotSettingsClass.get_setting("websocket_port", 6850)
 		_dock.update_connection_status(connected, client_count, port)
 
 
@@ -237,8 +235,5 @@ func get_debugger_plugin() -> EditorDebuggerPlugin:
 
 ## Logs a message if debug logging is enabled.
 func _log(message: String) -> void:
-	if _settings and _settings.is_feature_enabled("debug_logging"):
-		print("[Codot] %s" % message)
-	elif not _settings:
-		# During initialization, always log
+	if CodotSettingsClass.is_feature_enabled("debug_logging"):
 		print("[Codot] %s" % message)
