@@ -32,6 +32,7 @@ func _ready() -> void:
 
 func _on_editor_message(message: String, data: Array) -> bool:
 	## Handle messages from the editor
+	print("[Codot Capture] Received message: ", message, " with data: ", data)
 	match message:
 		"ping":
 			_send_to_editor("pong", {"time": Time.get_unix_time_from_system()})
@@ -50,8 +51,10 @@ func _on_editor_message(message: String, data: Array) -> bool:
 			return true
 		"simulate_input":
 			if data.size() > 0 and data[0] is Dictionary:
+				print("[Codot Capture] Processing input: ", data[0])
 				_handle_simulate_input(data[0])
 			return true
+	print("[Codot Capture] Unknown message: ", message)
 	return false
 
 
@@ -114,12 +117,15 @@ func _handle_simulate_input(params: Dictionary) -> void:
 			event = joy_motion
 	
 	if event:
+		print("[Codot Capture] Parsing input event: ", event, " type=", input_type)
 		Input.parse_input_event(event)
+		print("[Codot Capture] Input event parsed successfully")
 		_send_to_editor("input_result", {
 			"success": true,
 			"type": input_type,
 		})
 	else:
+		print("[Codot Capture] Failed to create event for type: ", input_type)
 		_send_to_editor("input_result", {
 			"success": false,
 			"error": "Unknown input type: " + input_type,

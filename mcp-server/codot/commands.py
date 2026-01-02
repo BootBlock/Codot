@@ -147,7 +147,8 @@ DISABLED_COMMANDS: set[str] = {
     "set_autoload_path",
     "reorder_autoloads",
     
-    # Advanced node operations
+    # Advanced node operations - call_method has schema validation issues
+    "call_method",
     "list_node_signals",
     "emit_signal",
     "list_node_methods",

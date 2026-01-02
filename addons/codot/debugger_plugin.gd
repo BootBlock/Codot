@@ -12,7 +12,7 @@ extends EditorDebuggerPlugin
 const MAX_ENTRIES: int = 1000
 
 ## Enable verbose logging to help debug the debugger
-const VERBOSE: bool = false
+const VERBOSE: bool = true
 
 ## Signal emitted when a new debug entry is captured
 signal entry_captured(entry: Dictionary)

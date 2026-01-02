@@ -152,6 +152,9 @@ func _poll_connections() -> void:
 		if tcp_peer != null:
 			print("[Codot] New TCP connection received")
 			var ws_peer: WebSocketPeer = WebSocketPeer.new()
+			# Increase buffer sizes to handle large responses
+			ws_peer.outbound_buffer_size = 1024 * 1024  # 1MB outbound buffer
+			ws_peer.inbound_buffer_size = 1024 * 1024   # 1MB inbound buffer
 			var err: int = ws_peer.accept_stream(tcp_peer)
 			print("[Codot] accept_stream result: ", err)
 			_pending_peers[tcp_peer] = ws_peer
