@@ -1,0 +1,162 @@
+[gd_scene load_steps=2 format=3 uid="uid://codot_panel"]
+
+[ext_resource type="Script" path="res://addons/codot/codot_panel.gd" id="1_script"]
+
+[node name="CodotPanel" type="PanelContainer"]
+offset_right = 300.0
+offset_bottom = 600.0
+script = ExtResource("1_script")
+
+[node name="MainVBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="MainVBox"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="MainVBox/Header"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Codot"
+
+[node name="Spacer" type="Control" parent="MainVBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StatusIndicator" type="Label" parent="MainVBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.2, 0.2, 1)
+text = "● Disconnected"
+
+[node name="HeaderSeparator" type="HSeparator" parent="MainVBox"]
+layout_mode = 2
+
+[node name="Toolbar" type="HBoxContainer" parent="MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="NewPromptButton" type="Button" parent="MainVBox/Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Create a new prompt"
+text = "+ New"
+
+[node name="ArchiveToggle" type="Button" parent="MainVBox/Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+tooltip_text = "Toggle archived prompts view"
+text = "Archive"
+
+[node name="ToolbarSpacer" type="Control" parent="MainVBox/Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SettingsButton" type="Button" parent="MainVBox/Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Open Codot settings"
+text = "⚙"
+
+[node name="ReconnectButton" type="Button" parent="MainVBox/Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Reconnect to VS Code"
+text = "↻"
+
+[node name="PromptListContainer" type="ScrollContainer" parent="MainVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="PromptList" type="VBoxContainer" parent="MainVBox/PromptListContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="EmptyLabel" type="Label" parent="MainVBox/PromptListContainer/PromptList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+text = "No prompts yet. Click '+ New' to create one."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="EditorSeparator" type="HSeparator" parent="MainVBox"]
+layout_mode = 2
+
+[node name="EditorSection" type="VBoxContainer" parent="MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EditorHeader" type="HBoxContainer" parent="MainVBox/EditorSection"]
+layout_mode = 2
+
+[node name="PromptTitleEdit" type="LineEdit" parent="MainVBox/EditorSection/EditorHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Prompt title..."
+
+[node name="DeleteButton" type="Button" parent="MainVBox/EditorSection/EditorHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Delete this prompt"
+text = "🗑"
+
+[node name="PromptTextEdit" type="TextEdit" parent="MainVBox/EditorSection"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 120)
+placeholder_text = "Enter your prompt here...
+
+Example prompts:
+• Create a player character with movement controls
+• Add a health system to the existing Player node
+• Fix the collision detection in my platformer"
+wrap_mode = 1
+
+[node name="ActionRow" type="HBoxContainer" parent="MainVBox/EditorSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SaveButton" type="Button" parent="MainVBox/EditorSection/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save"
+
+[node name="SendButton" type="Button" parent="MainVBox/EditorSection/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+disabled = true
+text = "Send to AI"
+
+[node name="FooterSeparator" type="HSeparator" parent="MainVBox"]
+layout_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="MainVBox"]
+layout_mode = 2
+
+[node name="PromptCountLabel" type="Label" parent="MainVBox/Footer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 11
+text = "0 prompts"
+
+[node name="FooterSpacer" type="Control" parent="MainVBox/Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HelpLabel" type="Label" parent="MainVBox/Footer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 11
+text = "Ctrl+Enter to send"

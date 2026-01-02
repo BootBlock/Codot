@@ -266,7 +266,58 @@ These are speculative features that need more research:
 
 ---
 
+## 🚀 Future Codot Panel Enhancements
+
+- [ ] **Prompt Templates** - Pre-built prompt templates for common tasks
+  - Scene creation templates
+  - Debugging prompts
+  - Code generation prompts
+
+- [ ] **Prompt Sharing** - Export/import prompts
+  - JSON export for sharing
+  - Team prompt libraries
+  - Version control integration
+
+- [ ] **Smart Suggestions** - Context-aware prompt suggestions
+  - Based on currently open scene
+  - Based on recent errors
+  - Based on selected nodes
+
+- [ ] **History Search** - Search through archived prompts
+  - Full-text search
+  - Filter by date, tags
+  - Favorite prompts
+
+---
+
 ## ✅ Recently Completed
+
+- [x] **Codot Prompt Panel** (v0.2.0) - Scene-based multi-prompt management
+  - Create, edit, save, delete prompts
+  - Archive prompts after sending to VS Code
+  - Restore archived prompts
+  - Scene-based UI (codot_panel.tscn) - no UI in code
+  - Comprehensive GUT tests (test_codot_panel.gd, test_codot_settings.gd)
+
+- [x] **Editor Settings Integration** - Codot settings in Godot preferences
+  - Settings under Plugin > Codot section
+  - Enable/disable prompt panel, WebSocket server, debug capture
+  - Configure MCP and VS Code ports
+  - Auto-archive setting
+
+- [x] **Tool Menu Integration** - Debug menu items
+  - Codot: Open Settings
+  - Codot: Reconnect to VS Code
+  - Codot: Restart MCP Server
+
+- [x] **Dialog Detection Commands** (v0.1.5)
+  - `get_open_dialogs` - Detect blocking modal dialogs
+  - `dismiss_dialog` - Close dialogs programmatically
+
+- [x] **Modular Command Architecture** (v0.1.4)
+  - 14 command modules under addons/codot/commands/
+  - Shared command_base.gd with common utilities
+  - Better separation of concerns
 
 - [x] Async command handling with proper await (2024-01)
 - [x] Plugin management commands (enable/disable/list)
@@ -281,4 +332,4 @@ These are speculative features that need more research:
 
 ---
 
-*Last updated: January 2026*
+*Last updated: January 2025*

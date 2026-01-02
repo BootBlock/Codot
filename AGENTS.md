@@ -209,9 +209,9 @@ button.text = "Click me"
 add_child(button)
 
 # ✅ GOOD - Load UI from scene file
-var dock_scene = preload("res://addons/codot/ai_chat_dock.tscn")
+var dock_scene = preload("res://addons/codot/codot_panel.tscn")
 var dock = dock_scene.instantiate()
-add_control_to_dock(DOCK_SLOT_LEFT_BR, dock)
+add_control_to_dock(DOCK_SLOT_RIGHT_UL, dock)
 ```
 
 **Why:**
@@ -263,6 +263,7 @@ When generating scripts that interact with Godot:
 
 ### Codebase Validation
 
+
 Run the validation script before committing changes:
 
 ```bash
@@ -281,10 +282,12 @@ This checks for:
 codot/
 ├── addons/codot/               # Godot editor plugin (SOURCE OF TRUTH)
 │   ├── plugin.cfg              # Plugin metadata
-│   ├── codot.gd                # Main EditorPlugin class
+│   ├── codot.gd                # Main EditorPlugin class (v0.2.0)
+│   ├── codot_panel.gd          # Prompt management panel script
+│   ├── codot_panel.tscn        # Prompt panel UI (scene-based)
+│   ├── codot_settings.gd       # Editor settings integration
 │   ├── websocket_server.gd     # WebSocket server
 │   ├── command_handler.gd      # Command routing (delegates to modules)
-│   ├── ai_chat_dock.gd         # AI prompt dock (WebSocket to VS Code)
 │   ├── debugger_plugin.gd      # Editor debugger for capturing output
 │   ├── output_capture.gd       # Game-side output capture (autoload)
 │   └── commands/               # Command module directory
@@ -316,8 +319,12 @@ codot/
 │   └── README.md               # Extension documentation
 ├── test/                       # GUT tests for Godot
 │   ├── unit/                   # Unit tests
+│   │   ├── test_codot_panel.gd # Prompt panel tests
+│   │   └── test_codot_settings.gd # Settings tests
 │   ├── integration/            # Integration tests
 │   └── scenes/                 # Test scenes
+├── scripts/                    # Development tools
+│   └── validate-codebase.py    # Static analysis validator
 ├── .vscode/mcp.json            # VS Code MCP configuration
 └── docs/                       # Documentation
 ```
